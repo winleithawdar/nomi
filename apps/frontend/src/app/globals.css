@@ -1,0 +1,44 @@
+@import "tailwindcss";
+
+:root {
+  --background: #f7faf7;
+  --foreground: #163128;
+  --card: #ffffff;
+  --card-foreground: #163128;
+  --muted: #eef4ef;
+  --muted-foreground: #61756c;
+  --border: #dde7e0;
+  --primary: #5f8f76;
+  --primary-foreground: #f7fbf8;
+  --secondary: #edf3ff;
+  --secondary-strong: #e3ecff;
+  --secondary-foreground: #25416d;
+  --sidebar: #f2f7f3;
+  --ring: #81aa95;
+  --badge-learning-bg: #eef3ff;
+  --badge-learning-text: #35568f;
+  --badge-stable-bg: #e7f5ec;
+  --badge-stable-text: #286244;
+  --chart-secondary: #8a9acc;
+}
+
+* {
+  border-color: var(--border);
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: radial-gradient(circle at top, rgba(255, 255, 255, 0.85), transparent 40%), var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans), sans-serif;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-family: var(--font-heading), serif;
+}

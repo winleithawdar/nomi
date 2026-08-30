@@ -149,6 +149,7 @@ activemq-data/
 
 # Environments
 .env
+.env.local
 .envrc
 .venv
 env/
@@ -156,6 +157,7 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+.venv-backend/
 
 # Spyder project settings
 .spyderproject
@@ -202,6 +204,12 @@ cython_debug/
 # .vscode/
 # Temporary file for partial code execution
 tempCodeRunnerFile.py
+
+# Node / Next.js
+node_modules/
+.next/
+out/
+*.tsbuildinfo
 
 # Ruff stuff:
 .ruff_cache/
