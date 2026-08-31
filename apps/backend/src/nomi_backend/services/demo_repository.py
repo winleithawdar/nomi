@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
 from nomi_backend.baseline import BaselineCalculator, SeniorInteraction
+from nomi_backend.notice import NoticeDetector
 
 
 @dataclass(frozen=True)
@@ -17,6 +18,7 @@ class SeniorProfile:
 class DemoBaselineRepository:
     def __init__(self) -> None:
         self.calculator = BaselineCalculator()
+        self.detector = NoticeDetector()
         self.seniors = [
             SeniorProfile("senior-1", "Mdm Tan", "Mother", "Late 70s"),
             SeniorProfile("senior-2", "Mr Rahman", "Father", "Early 80s"),
@@ -29,14 +31,19 @@ class DemoBaselineRepository:
         learning_count = 0
         established_count = 0
         recent_checkins = 0
+        changes_from_usual = 0
 
         for senior in self.seniors:
             senior_interactions = self._interactions_for(senior.id)
             baseline = self.calculator.calculate(senior.id, senior_interactions)
+            notice = self.detector.assess(baseline, senior.name)
             if baseline.status.value == "learning":
                 learning_count += 1
             else:
                 established_count += 1
+
+            if notice.status in {"watching", "changed"}:
+                changes_from_usual += 1
 
             recent_checkins += len(
                 [
@@ -56,6 +63,7 @@ class DemoBaselineRepository:
                     "observation_count": baseline.total_interactions,
                     "latest_interaction_at": baseline.as_of.isoformat() if baseline.as_of else None,
                     "status_text": self._status_text(baseline.status.value, senior.name),
+                    "notice": notice.to_dict(),
                 }
             )
 
@@ -65,6 +73,7 @@ class DemoBaselineRepository:
                 "seniors_learning": learning_count,
                 "baselines_established": established_count,
                 "recent_checkins": recent_checkins,
+                "changes_from_usual": changes_from_usual,
             },
             "seniors": summaries,
         }
@@ -76,6 +85,7 @@ class DemoBaselineRepository:
 
         senior_interactions = self._interactions_for(senior_id)
         baseline = self.calculator.calculate(senior_id, senior_interactions)
+        notice = self.detector.assess(baseline, senior.name)
         recent_observations = [
             {
                 "occurred_at": interaction.occurred_at.isoformat(),
@@ -98,6 +108,7 @@ class DemoBaselineRepository:
                 "age_band": senior.age_band,
             },
             "baseline": baseline.to_dict(),
+            "notice": notice.to_dict(),
             "recent_observations": recent_observations,
             "response_latency_series": response_latency_series,
         }
@@ -180,6 +191,7 @@ class DemoBaselineRepository:
             build("senior-1", 7, 26, wellbeing_score=4.0),
             build("senior-1", 9, 31, wellbeing_score=3.0),
             build("senior-1", 11, 28, wellbeing_score=4.0),
+            build("senior-1", 12, 58, wellbeing_score=2.0),
             build("senior-2", 0, 18),
             build("senior-2", 3, None, missed_checkin=True),
             build("senior-2", 6, 20),

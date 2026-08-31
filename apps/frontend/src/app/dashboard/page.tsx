@@ -1,6 +1,7 @@
 import { AppShell } from "@/components/app-shell";
 import { EmptyState } from "@/components/empty-state";
 import { MetricCard } from "@/components/metric-card";
+import { NoticeCard } from "@/components/notice-card";
 import { PageHeader } from "@/components/page-header";
 import { SeniorCard } from "@/components/senior-card";
 import { getSeniors } from "@/lib/api/seniors";
@@ -9,6 +10,9 @@ export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
   const data = await getSeniors();
+  const noticedSeniors = data.seniors.filter(
+    (senior) => senior.notice.status === "watching" || senior.notice.status === "changed",
+  );
 
   return (
     <AppShell currentPath="/dashboard">
@@ -16,7 +20,7 @@ export default async function DashboardPage() {
         <PageHeader
           eyebrow="Caregiver overview"
           title="Baseline learning across the people you support"
-          description="See who is still building a recent interaction baseline and who already has an established personal pattern."
+          description="See who is still building a recent interaction baseline, who already has an established personal pattern, and where recent check-ins differ from that person's usual."
         />
 
         <section className="grid gap-5 md:grid-cols-2 xl:grid-cols-4" aria-label="Summary metrics">
@@ -36,11 +40,27 @@ export default async function DashboardPage() {
             description="Seniors with enough recent observations for a stable baseline."
           />
           <MetricCard
-            label="Recent check-ins"
-            value={data.summary.recent_checkins}
-            description="Interactions captured over the most recent seven days."
+            label="Changes from usual"
+            value={data.summary.changes_from_usual}
+            description="People whose latest check-ins differ from their own recent pattern."
           />
         </section>
+
+        {noticedSeniors.length > 0 ? (
+          <section className="space-y-4">
+            <div className="space-y-1">
+              <h2 className="text-2xl font-semibold tracking-tight">Changes from usual</h2>
+              <p className="text-sm text-[var(--muted-foreground)]">
+                These notes compare the latest observations with each senior&apos;s own baseline. They are not medical labels and do not escalate to a caregiver by themselves.
+              </p>
+            </div>
+            <div className="grid gap-5 lg:grid-cols-2">
+              {noticedSeniors.map((senior) => (
+                <NoticeCard key={senior.id} senior={senior} />
+              ))}
+            </div>
+          </section>
+        ) : null}
 
         <section className="space-y-4">
           <div className="space-y-1">

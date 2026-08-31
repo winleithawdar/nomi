@@ -19,6 +19,10 @@
   --badge-learning-text: #35568f;
   --badge-stable-bg: #e7f5ec;
   --badge-stable-text: #286244;
+  --badge-watching-bg: #fff4e5;
+  --badge-watching-text: #8a5a12;
+  --badge-changed-bg: #fdecec;
+  --badge-changed-text: #8b2e2e;
   --chart-secondary: #8a9acc;
 }
 

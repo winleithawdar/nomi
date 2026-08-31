@@ -1,13 +1,33 @@
 # Backend
 
-This folder contains the Python backend for Nomi.
+Python services for Nomi: personal baseline calculation, explainable notice detection, and a FastAPI demo API.
 
 ## Structure
 
 ```text
 apps/backend/
-├── src/               # Backend application code
-└── tests/             # Backend test suite
+├── src/nomi_backend/
+│   ├── api/           # FastAPI app
+│   ├── baseline/      # Personal baseline models and calculator
+│   ├── notice/        # Change-from-usual detector
+│   └── services/      # Demo in-memory repository
+└── tests/
 ```
 
-The current implementation starts with the personal baseline layer so future FastAPI routes, persistence services, and anomaly detection modules can plug in cleanly.
+## Run
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e .
+python -m unittest discover tests
+uvicorn nomi_backend.api.app:app --host 127.0.0.1 --port 43124 --reload
+```
+
+## API
+
+- `GET /health`
+- `GET /api/v1/seniors`
+- `GET /api/v1/seniors/{senior_id}`
+
+The demo repository does not require Supabase. Use `infra/supabase/migrations` when wiring a real database.

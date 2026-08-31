@@ -8,18 +8,23 @@ from nomi_backend.services.demo_repository import DemoBaselineRepository
 app = FastAPI(
     title="Nomi Backend API",
     version="0.1.0",
-    description="Read-only baseline endpoints for the caregiver frontend foundation.",
+    description="Baseline and notice endpoints for the caregiver dashboard.",
 )
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+    allow_origin_regex=r"http://(localhost|127\.0\.0\.1)(:\d+)?",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 repository = DemoBaselineRepository()
+
+
+@app.get("/health")
+def health() -> dict:
+    return {"status": "ok"}
 
 
 @app.get("/api/v1/seniors")
