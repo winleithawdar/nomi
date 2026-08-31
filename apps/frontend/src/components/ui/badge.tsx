@@ -9,8 +9,6 @@ const badgeVariants = cva(
       variant: {
         learning: "bg-[var(--badge-learning-bg)] text-[var(--badge-learning-text)]",
         stable: "bg-[var(--badge-stable-bg)] text-[var(--badge-stable-text)]",
-        watching: "bg-[var(--badge-watching-bg)] text-[var(--badge-watching-text)]",
-        changed: "bg-[var(--badge-changed-bg)] text-[var(--badge-changed-text)]",
         neutral: "bg-[var(--muted)] text-[var(--muted-foreground)]",
       },
     },

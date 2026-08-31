@@ -2,7 +2,6 @@ import type { Route } from "next";
 import Link from "next/link";
 import { ArrowRight, Clock3, NotebookPen } from "lucide-react";
 
-import { NoticeBadge } from "@/components/notice-badge";
 import { StatusBadge } from "@/components/status-badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { SeniorSummary } from "@/lib/api/types";
@@ -20,12 +19,7 @@ export function SeniorCard({ senior }: { senior: SeniorSummary }) {
                 {senior.relationship} • {senior.age_band}
               </p>
             </div>
-            <div className="flex flex-col items-end gap-2">
-              <StatusBadge status={senior.baseline_status} />
-              {senior.notice.status === "watching" || senior.notice.status === "changed" ? (
-                <NoticeBadge status={senior.notice.status} />
-              ) : null}
-            </div>
+            <StatusBadge status={senior.baseline_status} />
           </div>
         </CardHeader>
         <CardContent className="space-y-4">

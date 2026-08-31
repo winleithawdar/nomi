@@ -3,7 +3,6 @@ import { notFound } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
 import { BaselineMetricCard } from "@/components/baseline-metric-card";
 import { BaselineStatusCard } from "@/components/baseline-status-card";
-import { NoticePanel } from "@/components/notice-panel";
 import { RecentObservations } from "@/components/recent-observations";
 import { ResponseLatencyChart } from "@/components/response-latency-chart";
 import { StatusBadge } from "@/components/status-badge";
@@ -49,8 +48,6 @@ export default async function SeniorDetailPage({
           </Card>
 
           <BaselineStatusCard senior={senior} baseline={baseline} />
-
-          <NoticePanel notice={data.notice} />
 
           <section className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
             <BaselineMetricCard

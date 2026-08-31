@@ -71,14 +71,4 @@ class SeniorBaseline:
     metadata: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        payload = asdict(self)
-        payload["status"] = self.status.value
-        payload["as_of"] = self.as_of.isoformat() if self.as_of else None
-        for signal_name in (
-            "response_latency_minutes",
-            "missed_checkin_rate",
-            "interaction_frequency",
-            "wellbeing_score",
-        ):
-            payload[signal_name]["status"] = getattr(self, signal_name).status.value
-        return payload
+        return asdict(self)
