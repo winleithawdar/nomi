@@ -258,16 +258,36 @@ for sub-threshold drift.
 | `recent_min_points` | 4 | min trailing values to attempt detection |
 | `min_sustained_points` | 3 | recent points a full sigma clear of `ref_mean` for a level shift; also the CUSUM minimum run length |
 | `shift_z_threshold` | 1.5 | standardised level-shift trigger |
-| `min_rel_std` | 0.05 | `ref_std` floor as a fraction of `abs(ref_mean)` |
+| `min_rel_std` | 0.12 | `ref_std` floor as a fraction of `abs(ref_mean)` |
 | `cusum_k` | 0.5 | CUSUM slack (in std units) |
-| `cusum_h` | 4.0 | CUSUM decision interval |
+| `cusum_h` | 5.0 | CUSUM decision interval |
 | `cusum_clamp` | 4.0 | per-residual clamp (std units) so one spike cannot fire CUSUM |
 | `trend_slope_threshold` | 0.4 | normalised slope trigger (std per observation) |
 | `epsilon` | 1e-6 | absolute std floor to avoid divide-by-zero |
 
 Defaults are a starting point; the evaluation harness (section 9) is the
 mechanism for tuning them, and the chosen values are recorded in the results
-file.
+file. `min_rel_std` and `cusum_h` were raised from their initial `0.05` / `4.0`
+during the harness tuning pass (section 9, Task 10): at the synthetic noise
+level (`NORMAL_LATENCY_SD / NORMAL_LATENCY = 0.12`) the lower floor let ordinary
+jitter read as a shift, and `cusum_h = 4.0` gave a false-alarm-prone ARL. The
+`recent_window_points = 7` default was confirmed by the sweep and is unchanged.
+
+Three robustness rules were added to the per-signal procedure beyond the
+methods in section 7, all aimed at the "a lone spike is P1's job, not a
+sustained change" boundary:
+
+- **Frequency warm-up trim.** The `interaction_frequency` series opens with a
+  deterministic fill-up ramp as the trailing `frequency_window_days` counter
+  fills; those leading points are dropped before the reference/recent split so a
+  stable senior does not read as a rising frequency.
+- **Median-triggered level shift.** The level-shift decision uses
+  `median(recent)` (not the mean) against the threshold, and the sustained-point
+  count discards the single most extreme point. One outlier moves the mean over
+  the bar but not the median.
+- **Trend leave-one-out.** A fired trend must survive dropping the window's most
+  extreme point; a genuine ramp barely moves, a single leverage point collapses
+  to noise.
 
 ## 8. Error and edge handling
 
@@ -304,6 +324,23 @@ returns `(interactions: list[SeniorInteraction], ground_truth)` where
 
 Each scenario produces `seniors_per_scenario` synthetic seniors with
 per-senior jitter so metrics are not computed on a single trace.
+
+`sudden_cessation` collapses cadence from daily to every third day for the
+change window (`CHANGE_POINTS // 2` post-onset interactions) — enough
+post-onset points for the persistence rule below to confirm the drop.
+
+### Replay and persistence (`harness.first_flag_index`)
+
+Each detector is scored by replaying growing prefixes of a senior's interaction
+list. Two guards keep the growing-prefix replay from inflating the false-alert
+rate through repeated testing:
+
+- **`_MIN_PREFIX = 14`** — no verdict before a full recent window plus a
+  reference stretch exists.
+- **Persistence** — a prefix's detection counts only when the immediately
+  preceding prefix also detected. A sustained change is still present one
+  observation later; a transient noise flag is not. This adds roughly one
+  observation to detection delay.
 
 ### Fixed-threshold detector (`fixed_threshold.py`)
 
@@ -504,3 +541,10 @@ detection delay useful, holds the false-alert rate down enough to protect
 caregiver trust, gives the trend test enough points to function, and still lets
 the mid-history demo seniors be evaluated at all. The evaluation harness exists
 to prove or correct this before the number is locked.
+
+**Measured (seed `20260901`, 30 seniors/scenario).** The sweep confirms `n = 7`:
+recall `1.00`, false-alert rate `0.15` (the target), median detection delay `5`
+observations. Smaller windows (`4`, `5`) detect ~1 observation sooner but push
+the false-alert rate to `0.23`–`0.38`; larger windows (`10`, `14`) match the
+delay with a slightly worse false-alert rate. The fixed-threshold comparator
+scores recall `0.70`, delay `8`. Full table in `evaluation-results.md`.
