@@ -3,12 +3,13 @@ from __future__ import annotations
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
+from nomi_backend.api.verification import router as verification_router
 from nomi_backend.services.demo_repository import DemoBaselineRepository
 
 app = FastAPI(
     title="Nomi Backend API",
-    version="0.1.0",
-    description="Read-only baseline endpoints for the caregiver frontend foundation.",
+    version="0.2.0",
+    description="Baseline, detection, and verification endpoints for Nomi.",
 )
 
 app.add_middleware(
@@ -20,6 +21,8 @@ app.add_middleware(
 )
 
 repository = DemoBaselineRepository()
+
+app.include_router(verification_router)
 
 
 @app.get("/api/v1/seniors")
