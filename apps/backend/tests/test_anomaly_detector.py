@@ -126,7 +126,7 @@ class AnomalyDetectorTest(unittest.TestCase):
 
         result = self.detector.detect("senior-1", history)
 
-        self.assertEqual(result.metadata["training_observations"], 31)
+        self.assertEqual(result.metadata["training_observations"], 24)
 
     def test_non_nomi_observations_are_ignored(self) -> None:
         history = _normal_history(32)
@@ -154,8 +154,22 @@ class AnomalyDetectorTest(unittest.TestCase):
             item for item in result.contributions if item.signal == "response_latency_minutes"
         )
 
-        self.assertEqual(result.status, DetectionStatus.INSUFFICIENT_HISTORY)
+        self.assertEqual(result.status, DetectionStatus.OK)
         self.assertEqual(latency.status, DetectionStatus.INSUFFICIENT_HISTORY)
+
+    def test_first_unusual_missed_checkin_is_detected_by_personal_guard(self) -> None:
+        history = _normal_history(31, wellbeing=False)
+        history.append(_interaction(31, None, missed_checkin=True))
+
+        result = self.detector.detect("senior-1", history)
+        missed = next(
+            item for item in result.contributions if item.signal == "missed_checkin_rate"
+        )
+
+        self.assertEqual(result.status, DetectionStatus.OK)
+        self.assertTrue(result.detected)
+        self.assertTrue(missed.flagged)
+        self.assertIn("personal_deviation_guard", missed.methods_fired)
 
 
 class AnomalyApiTest(unittest.TestCase):

@@ -29,9 +29,16 @@ terminal range in the same leaf, P1 also applies a robust per-senior deviation
 guard for extreme departures from a stable signal. This is a quality safeguard,
 not a population threshold, and it is surfaced as a named detection method.
 The API does not expose the raw score or a generic risk score.
+An Isolation Forest score also needs personal evidence: one signal must differ
+by at least 2.5 robust standard deviations, or two signals must each differ by
+at least 1.5. This prevents an isolated model score from turning ordinary
+personal variation into a false alert.
 For every active signal, explanations compare the latest value with the
 senior's historical mean/median and use counterfactual replacement to identify
 signals whose return to usual behaviour reduces anomaly evidence.
+Signals with no historical variation are not sent into the forest, but remain
+eligible for the personal-deviation guard. This lets P1 explain a first unusual
+missed check-in without diluting the multivariate model with a constant column.
 
 ## API
 
@@ -72,4 +79,20 @@ No database schema, migration, persistence, or environment-variable changes.
 
 `apps/backend/tests/test_anomaly_detector.py` covers normal observations,
 obvious anomalies, insufficient history, absent wellbeing, malformed optional
-data, training-history isolation, and non-Nomi filtering.
+data, training-history isolation, duplicate timestamps, and non-Nomi filtering.
+
+## Prototype Evaluation
+
+`nomi_backend.evaluation.anomaly_harness` evaluates the hybrid detector against
+Isolation Forest without the personal-deviation guard. It uses deterministic
+synthetic personal routines and point anomalies: a late response, a missed
+check-in, a wellbeing drop, a combined anomaly, and a late response when
+wellbeing is unavailable.
+
+The harness reports recall, precision, false-alert rate, and zero-delay point
+detection. It also sweeps the personal-deviation guard threshold. The seeded
+four-senior test run achieved 1.000 recall and 0.000 false-alert rate for the
+hybrid detector, compared with 0.500 recall for Isolation Forest alone. This is
+prototype evidence on synthetic data only, not clinical validation or final
+production calibration. The sweep is diagnostic only; it does not automatically
+change the configured `3.5` guard threshold.

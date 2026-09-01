@@ -178,6 +178,13 @@ from nomi_backend.evaluation.harness import (
     render_markdown,
     run_evaluation,
 )
+from nomi_backend.evaluation.anomaly_harness import (
+    ANOMALY_SCENARIO_NAMES,
+    EVAL_BANNER as ANOMALY_EVAL_BANNER,
+    render_json as render_anomaly_json,
+    render_markdown as render_anomaly_markdown,
+    run_anomaly_evaluation,
+)
 
 
 class HarnessTest(unittest.TestCase):
@@ -231,6 +238,37 @@ class CliTest(unittest.TestCase):
             self.assertEqual(payload["seed"], 5)
             md = (Path(tmp) / "evaluation-results.md").read_text(encoding="utf-8")
             self.assertIn("Evaluation Results", md)
+
+
+class AnomalyHarnessTest(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.report = run_anomaly_evaluation(seed=202, seniors_per_scenario=4)
+
+    def test_all_anomaly_scenarios_are_reported(self) -> None:
+        self.assertEqual(set(self.report["per_scenario"]), set(ANOMALY_SCENARIO_NAMES))
+
+    def test_hybrid_detector_catches_injected_anomalies(self) -> None:
+        metrics = self.report["detectors"]["hybrid_personal_detector"]
+        self.assertGreaterEqual(metrics["recall"], 0.95)
+
+    def test_hybrid_is_not_worse_than_forest_only(self) -> None:
+        hybrid = self.report["detectors"]["hybrid_personal_detector"]
+        forest = self.report["detectors"]["isolation_forest_only"]
+        self.assertGreaterEqual(hybrid["recall"], forest["recall"])
+
+    def test_hybrid_false_alert_rate_meets_prototype_target(self) -> None:
+        metrics = self.report["detectors"]["hybrid_personal_detector"]
+        self.assertLessEqual(metrics["false_alert_rate"], 0.10)
+
+    def test_guard_sweep_includes_default_threshold(self) -> None:
+        thresholds = [row["guard_z_threshold"] for row in self.report["guard_threshold_sweep"]]
+        self.assertIn(3.5, thresholds)
+        self.assertEqual(self.report["configured_guard_z_threshold"], 3.5)
+
+    def test_anomaly_renderers_include_banner(self) -> None:
+        self.assertIn(ANOMALY_EVAL_BANNER, render_anomaly_markdown(self.report))
+        self.assertEqual(render_anomaly_json(self.report).count('"seed"'), 1)
 
 
 if __name__ == "__main__":

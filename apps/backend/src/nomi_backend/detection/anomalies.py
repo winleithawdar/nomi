@@ -67,6 +67,10 @@ class AnomalyDetectorConfig:
     explanation_window_points: int = 7
     relative_scale_floor: float = 0.1
     personal_deviation_z_threshold: float = 3.5
+    forest_single_signal_z_threshold: float = 2.5
+    forest_multi_signal_z_threshold: float = 1.5
+    forest_min_multi_signal_count: int = 2
+    require_forest_personal_evidence: bool = True
     epsilon: float = 1e-6
 
 
@@ -120,7 +124,10 @@ class AnomalyDetector:
         )
         contributions = self._empty_contributions(rows, active_signals)
 
-        if len(active_signals) < self.config.min_feature_count or len(training_rows) < self.config.min_training_points:
+        if (
+            len(active_signals) < self.config.min_feature_count
+            or len(training_rows) < self.config.min_training_points
+        ):
             return self._insufficient_result(
                 senior_id,
                 as_of,
@@ -131,36 +138,55 @@ class AnomalyDetector:
             )
 
         training_rows = training_rows[-self.config.max_training_points :]
-        raw_training = numpy.asarray(
-            [[row.values[signal] for signal in active_signals] for row in training_rows],
-            dtype=float,
-        )
-        transformed_training = self._transform_matrix(raw_training, active_signals)
-        scaler = RobustScaler()
-        scaled_training = scaler.fit_transform(transformed_training)
-        model = IsolationForest(
-            contamination=self.config.contamination,
-            n_estimators=self.config.n_estimators,
-            random_state=self.config.random_state,
-            max_samples=1.0,
-        )
-        model.fit(scaled_training)
-
-        raw_observation = numpy.asarray(
-            [[observation.values[signal] for signal in active_signals]], dtype=float
-        )
-        scaled_observation = scaler.transform(
-            self._transform_matrix(raw_observation, active_signals)
-        )
-        training_scores = -model.score_samples(scaled_training)
-        observation_score = float(-model.score_samples(scaled_observation)[0])
-        # Calibrate against this senior's own recent normal observations. The score
-        # stays internal so the API never presents a generic risk score.
-        threshold = float(numpy.quantile(training_scores, 1.0 - self.config.contamination))
-        model_detected = observation_score > threshold
+        model_signals = self._varying_signals(active_signals, training_rows)
         guarded_signals = self._personal_deviation_signals(
             observation, training_rows, active_signals
         )
+        model: IsolationForest | None = None
+        scaled_observation: numpy.ndarray | None = None
+        scaled_training: numpy.ndarray | None = None
+        observation_score: float | None = None
+        model_detected = False
+        if model_signals:
+            raw_training = numpy.asarray(
+                [
+                    [row.values[signal] for signal in model_signals]
+                    for row in training_rows
+                ],
+                dtype=float,
+            )
+            transformed_training = self._transform_matrix(raw_training, model_signals)
+            scaler = RobustScaler()
+            scaled_training = scaler.fit_transform(transformed_training)
+            model = IsolationForest(
+                contamination=self.config.contamination,
+                n_estimators=self.config.n_estimators,
+                random_state=self.config.random_state,
+                max_samples=1.0,
+            )
+            model.fit(scaled_training)
+            raw_observation = numpy.asarray(
+                [[observation.values[signal] for signal in model_signals]], dtype=float
+            )
+            scaled_observation = scaler.transform(
+                self._transform_matrix(raw_observation, model_signals)
+            )
+            training_scores = -model.score_samples(scaled_training)
+            observation_score = float(-model.score_samples(scaled_observation)[0])
+            # Calibrate against this senior's own recent normal observations. The score
+            # stays internal so the API never presents a generic risk score.
+            threshold = float(
+                numpy.quantile(training_scores, 1.0 - self.config.contamination)
+            )
+            model_detected = (
+                observation_score > threshold
+                and (
+                    not self.config.require_forest_personal_evidence
+                    or self._forest_has_personal_evidence(
+                        observation, training_rows, model_signals
+                    )
+                )
+            )
         # A forest cannot distinguish values beyond the largest training point
         # once they land in the same terminal leaf. A robust, per-senior guard
         # preserves sensitivity to an extreme one-signal departure without using
@@ -173,6 +199,7 @@ class AnomalyDetector:
             scaled_observation=scaled_observation,
             scaled_training=scaled_training,
             active_signals=active_signals,
+            model_signals=model_signals,
             training_rows=training_rows,
             all_rows=rows,
             detected=detected,
@@ -195,6 +222,7 @@ class AnomalyDetector:
             metadata={
                 "dropped_values": dropped_values,
                 "feature_profile": active_signals,
+                "model_feature_profile": model_signals,
                 "training_observations": len(training_rows),
                 "threshold_source": "personal_training_quantile",
                 "detection_methods": [
@@ -266,21 +294,7 @@ class AnomalyDetector:
                 row for row in history if all(signal in row.values for signal in candidates)
             ]
             if len(complete) >= self.config.min_training_points:
-                varying = [
-                    signal
-                    for signal in candidates
-                    if max(row.values[signal] for row in complete)
-                    - min(row.values[signal] for row in complete)
-                    > self.config.epsilon
-                ]
-                if len(varying) >= self.config.min_feature_count:
-                    complete = [
-                        row
-                        for row in history
-                        if all(signal in row.values for signal in varying)
-                    ]
-                    return varying, complete
-                return [], []
+                return candidates, complete
             # Optional sparse signals are removed before reliable core signals.
             least_available = min(
                 candidates,
@@ -305,11 +319,12 @@ class AnomalyDetector:
     def _explain(
         self,
         *,
-        model: IsolationForest,
-        observation_score: float,
-        scaled_observation: numpy.ndarray,
-        scaled_training: numpy.ndarray,
+        model: IsolationForest | None,
+        observation_score: float | None,
+        scaled_observation: numpy.ndarray | None,
+        scaled_training: numpy.ndarray | None,
         active_signals: list[str],
+        model_signals: list[str],
         training_rows: list[_FeatureRow],
         all_rows: list[_FeatureRow],
         detected: bool,
@@ -317,12 +332,18 @@ class AnomalyDetector:
         guarded_signals: set[str],
     ) -> list[SignalContribution]:
         increases: dict[str, float] = {}
-        for index, signal in enumerate(active_signals):
-            replacement = scaled_observation.copy()
-            # The median transformed training value represents this senior's usual value.
-            replacement[0, index] = float(numpy.median(scaled_training[:, index]))
-            replaced_score = float(-model.score_samples(replacement)[0])
-            increases[signal] = observation_score - replaced_score
+        if (
+            model is not None
+            and observation_score is not None
+            and scaled_observation is not None
+            and scaled_training is not None
+        ):
+            for index, signal in enumerate(model_signals):
+                replacement = scaled_observation.copy()
+                # The median transformed training value represents this senior's usual value.
+                replacement[0, index] = float(numpy.median(scaled_training[:, index]))
+                replaced_score = float(-model.score_samples(replacement)[0])
+                increases[signal] = observation_score - replaced_score
 
         positive = [signal for signal, value in increases.items() if value > self.config.epsilon]
         if detected and not positive and increases:
@@ -444,6 +465,17 @@ class AnomalyDetector:
                 transformed[:, index] = numpy.log1p(transformed[:, index])
         return transformed
 
+    def _varying_signals(
+        self, signals: list[str], training_rows: list[_FeatureRow]
+    ) -> list[str]:
+        return [
+            signal
+            for signal in signals
+            if max(row.values[signal] for row in training_rows)
+            - min(row.values[signal] for row in training_rows)
+            > self.config.epsilon
+        ]
+
     def _personal_deviation_signals(
         self,
         observation: _FeatureRow,
@@ -452,18 +484,52 @@ class AnomalyDetector:
     ) -> set[str]:
         guarded: set[str] = set()
         for signal in active_signals:
-            values = [row.values[signal] for row in training_rows]
-            centre = median(values)
-            mad = median([abs(value - centre) for value in values])
-            scale = max(
-                1.4826 * mad,
-                pstdev(values) if len(values) > 1 else 0.0,
-                self.config.relative_scale_floor * abs(centre),
-                self.config.epsilon,
-            )
-            if abs(observation.values[signal] - centre) / scale >= self.config.personal_deviation_z_threshold:
+            if (
+                self._personal_z(observation.values[signal], signal, training_rows)
+                >= self.config.personal_deviation_z_threshold
+            ):
                 guarded.add(signal)
         return guarded
+
+    def _forest_has_personal_evidence(
+        self,
+        observation: _FeatureRow,
+        training_rows: list[_FeatureRow],
+        model_signals: list[str],
+    ) -> bool:
+        deviations = [
+            self._personal_z(observation.values[signal], signal, training_rows)
+            for signal in model_signals
+        ]
+        if any(
+            value >= self.config.forest_single_signal_z_threshold
+            for value in deviations
+        ):
+            return True
+        return (
+            sum(
+                value >= self.config.forest_multi_signal_z_threshold
+                for value in deviations
+            )
+            >= self.config.forest_min_multi_signal_count
+        )
+
+    def _personal_z(
+        self,
+        current: float,
+        signal: str,
+        training_rows: list[_FeatureRow],
+    ) -> float:
+        values = [row.values[signal] for row in training_rows]
+        centre = median(values)
+        mad = median([abs(value - centre) for value in values])
+        scale = max(
+            1.4826 * mad,
+            pstdev(values) if len(values) > 1 else 0.0,
+            self.config.relative_scale_floor * abs(centre),
+            self.config.epsilon,
+        )
+        return abs(current - centre) / scale
 
     def _dominant_direction(self, flagged: list[SignalContribution]) -> ChangeDirection:
         if not flagged:
