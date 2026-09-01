@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from .anomalies import AnomalyDetector, AnomalyDetectorConfig
 from .changes import ChangeDetector, ChangeDetectorConfig
 from .contract import (
     ChangeDirection,
@@ -11,6 +12,8 @@ from .contract import (
 )
 
 __all__ = [
+    "AnomalyDetector",
+    "AnomalyDetectorConfig",
     "ChangeDetector",
     "ChangeDetectorConfig",
     "ChangeDirection",

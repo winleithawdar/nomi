@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
 from nomi_backend.baseline import BaselineCalculator, SeniorInteraction
+from nomi_backend.detection import AnomalyDetector
 
 
 @dataclass(frozen=True)
@@ -17,6 +18,7 @@ class SeniorProfile:
 class DemoBaselineRepository:
     def __init__(self) -> None:
         self.calculator = BaselineCalculator()
+        self.anomaly_detector = AnomalyDetector()
         self.seniors = [
             SeniorProfile("senior-1", "Mdm Tan", "Mother", "Late 70s"),
             SeniorProfile("senior-2", "Mr Rahman", "Father", "Early 80s"),
@@ -101,6 +103,13 @@ class DemoBaselineRepository:
             "recent_observations": recent_observations,
             "response_latency_series": response_latency_series,
         }
+
+    def get_anomaly_payload(self, senior_id: str) -> dict | None:
+        if not any(item.id == senior_id for item in self.seniors):
+            return None
+        return self.anomaly_detector.detect(
+            senior_id, self._interactions_for(senior_id)
+        ).to_dict()
 
     def _interactions_for(self, senior_id: str) -> list[SeniorInteraction]:
         return [item for item in self.interactions if item.senior_id == senior_id]

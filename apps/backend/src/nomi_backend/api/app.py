@@ -33,3 +33,11 @@ def get_senior_baseline(senior_id: str) -> dict:
     if payload is None:
         raise HTTPException(status_code=404, detail="Senior not found.")
     return payload
+
+
+@app.get("/api/v1/seniors/{senior_id}/detections/anomaly")
+def get_latest_anomaly(senior_id: str) -> dict:
+    payload = repository.get_anomaly_payload(senior_id)
+    if payload is None:
+        raise HTTPException(status_code=404, detail="Senior not found.")
+    return payload
