@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -9,12 +10,30 @@ from sqlalchemy.orm import Session
 from nomi_backend.persistence.database import SessionLocal, create_db_engine
 from nomi_backend.persistence.schema import Base
 from nomi_backend.services.verification_service import VerificationService
-from nomi_backend.verification.models import AlertStatus, VerificationOutcome
+from nomi_backend.verification.models import (
+    AlertStatus,
+    VerificationOutcome,
+    VerificationProcessResult,
+)
 
 router = APIRouter(prefix="/api/v1", tags=["verification"])
 
 _db_engine = create_db_engine()
 Base.metadata.create_all(_db_engine)
+
+_result_delivery_hook: Callable[[VerificationProcessResult, bool], None] | None = None
+
+
+def set_result_delivery_hook(
+    hook: Callable[[VerificationProcessResult, bool], None] | None,
+) -> None:
+    global _result_delivery_hook
+    _result_delivery_hook = hook
+
+
+def _deliver_result(result: VerificationProcessResult, *, send_prompt: bool) -> None:
+    if _result_delivery_hook is not None:
+        _result_delivery_hook(result, send_prompt)
 
 
 def get_db_session() -> Session:
@@ -60,6 +79,7 @@ def start_verification(
             status_code=400,
             detail="Detection is not actionable for verification.",
         )
+    _deliver_result(result, send_prompt=True)
     return result.to_dict()
 
 
@@ -82,6 +102,7 @@ def record_verification_response(
     )
     if result is None:
         raise HTTPException(status_code=404, detail="Verification request not found.")
+    _deliver_result(result, send_prompt=False)
     return result.to_dict()
 
 
@@ -94,6 +115,7 @@ def record_no_response(
     result = service.handle_no_response(verification_id)
     if result is None:
         raise HTTPException(status_code=404, detail="Verification request not found.")
+    _deliver_result(result, send_prompt=False)
     return result.to_dict()
 
 

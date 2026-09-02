@@ -24,9 +24,10 @@ Open **SQL Editor**, then run these files from oldest to newest:
 2. `infra/supabase/migrations/202609010001_whatsapp_checkin_pipeline.sql`
 3. `infra/supabase/migrations/202609010001_verification_escalation.sql`
 4. `infra/supabase/migrations/202609020001_integration_profiles_and_seed.sql`
+5. `infra/supabase/migrations/202609020002_persistent_checkin_pipeline.sql`
 
-The final migration aligns all `senior_id` columns to text, creates the caregiver/profile
-tables, and inserts idempotent demo profiles and Mdm Tan's deterministic interaction history.
+The last two migrations align `senior_id`, add profile/consent data, make check-ins and webhook
+events restart-safe, and insert idempotent demo data.
 
 ## 3. Configure each app
 
@@ -37,6 +38,7 @@ DATABASE_URL=postgresql+psycopg://...
 NOMI_DATA_MODE=database
 NOMI_MESSAGING_PROVIDER=mock
 NOMI_CORS_ORIGINS=http://localhost:3000
+WHATSAPP_APP_SECRET=local-demo-secret
 ```
 
 Frontend environment:
@@ -62,7 +64,21 @@ The second response should include `Mdm Tan`, `Mr Rahman`, and `Auntie Lee`. If 
 500 error, check the backend terminal first. The most common causes are a missing migration,
 an incorrectly encoded database password, or a connection string without `sslmode=require`.
 
-## 5. Safety before production
+## 5. Test the persisted pipeline
+
+After applying migration `202609020002_persistent_checkin_pipeline.sql`, restart FastAPI and
+run from the repository root:
+
+```bash
+python scripts/run_persistent_pipeline_demo.py
+```
+
+This registers mock contacts, stores a check-in, posts signed webhook replies, runs detection,
+resolves verification as help-needed, sends through the mock provider, and marks the caregiver
+alert delivered. Confirm new rows in `nomi_checkins`, `whatsapp_events`,
+`senior_interactions`, `verification_requests`, and `caregiver_alerts`.
+
+## 6. Safety before production
 
 The current MVP connects through a trusted backend and does not expose Supabase directly to
 the browser. Before any browser-direct Supabase access is added, enable Row Level Security and

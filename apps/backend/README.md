@@ -43,6 +43,9 @@ from `infra/supabase/migrations/`.
 | `GET` | `/api/v1/seniors/{id}/verifications` | Verification history |
 | `GET` | `/api/v1/seniors/{id}/alerts` | Caregiver alert history |
 | `GET` | `/api/v1/seniors/{id}/detections/change` | Latest longitudinal change result |
+| `PUT` | `/api/v1/seniors/{id}/contacts/{role}` | Register senior/caregiver WhatsApp contact |
+| `POST` | `/api/v1/checkins` | Send and persist a check-in |
+| `POST` | `/api/v1/checkins/{id}/missed` | Close a missed check-in and run detection |
 | `GET` | `/api/v1/verifications/{id}/check-in-message` | P3: outbound senior check-in text |
 | `GET` | `/api/v1/alerts` | P5: dashboard alert feed (optional filters) |
 | `GET` | `/api/v1/alerts/{id}/caregiver-message` | P3: outbound caregiver alert text |
