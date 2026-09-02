@@ -10,6 +10,7 @@ from .protocol import (
     Recipient,
 )
 from .settings import MessagingSettings
+from .telegram_bot import TelegramBotProvider
 from .whatsapp_cloud import WhatsAppCloudProvider
 
 __all__ = [
@@ -20,6 +21,7 @@ __all__ = [
     "MockMessagingProvider",
     "OutboundMessage",
     "Recipient",
+    "TelegramBotProvider",
     "WhatsAppCloudProvider",
     "build_messaging_provider",
 ]

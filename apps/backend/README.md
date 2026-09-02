@@ -27,6 +27,11 @@ uvicorn nomi_backend.api:app --reload
 | `DATABASE_URL` | `sqlite:///./nomi_verification.db` | SQLAlchemy connection for verification/alert persistence |
 | `NOMI_DATA_MODE` | `demo` | Use deterministic `demo` data or PostgreSQL `database` reads |
 | `NOMI_CORS_ORIGINS` | Local frontend URLs | Comma-separated allowed frontend origins |
+| `NOMI_MESSAGING_PROVIDER` | `mock` | `mock`, `telegram` (live demo), or `whatsapp` |
+| `TELEGRAM_BOT_TOKEN` | empty | BotFather token; required when provider is `telegram` |
+| `TELEGRAM_WEBHOOK_SECRET` | empty | `X-Telegram-Bot-Api-Secret-Token` / `setWebhook` `secret_token` |
+| `NOMI_DEMO_SENIOR_CHAT_ID` | empty | Seed `senior-1` Telegram chat id (alias of `NOMI_DEMO_SENIOR_WA_ID`) |
+| `NOMI_DEMO_CAREGIVER_CHAT_ID` | empty | Seed caregiver contact for `senior-1` |
 
 For Supabase, set `DATABASE_URL` to the PostgreSQL connection string and apply migrations
 from `infra/supabase/migrations/`.

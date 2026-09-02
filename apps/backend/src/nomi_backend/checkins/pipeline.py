@@ -37,7 +37,13 @@ class CheckInService:
         self.settings = settings
         self._clock = clock if clock is not None else lambda: datetime.now(timezone.utc)
 
-    def send_checkin(self, senior_id: str, *, body: str | None = None) -> CheckIn:
+    def send_checkin(
+        self,
+        senior_id: str,
+        *,
+        body: str | None = None,
+        meal: str = "extra",
+    ) -> CheckIn:
         contact = self.store.get_contact(senior_id, ContactRole.SENIOR)
         if contact is None:
             raise ContactNotFound(f"No senior contact for {senior_id}")
@@ -61,6 +67,7 @@ class CheckInService:
             response_wamid=None,
             response_received_at=None,
             wellbeing_score=None,
+            meal=meal,
         )
         return self.store.create_checkin(checkin)
 

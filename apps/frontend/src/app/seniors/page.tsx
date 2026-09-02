@@ -1,7 +1,7 @@
 import { AppShell } from "@/components/app-shell";
 import { EmptyState } from "@/components/empty-state";
 import { PageHeader } from "@/components/page-header";
-import { SeniorCard } from "@/components/senior-card";
+import { SeniorRow } from "@/components/senior-row";
 import { getSeniors } from "@/lib/api/seniors";
 
 export const dynamic = "force-dynamic";
@@ -10,12 +10,12 @@ export default async function SeniorsPage() {
   const data = await getSeniors();
 
   return (
-    <AppShell currentPath="/seniors">
-      <div className="space-y-8">
+    <AppShell>
+      <div className="space-y-6">
         <PageHeader
-          eyebrow="Seniors"
+          eyebrow="People"
           title="People you support"
-          description="Each card shows whether Nomi is still learning a personal baseline or has enough recent history to describe the usual pattern."
+          description="Each row shows whether Nomi is still learning their usual pattern or already has a personal baseline."
         />
 
         {data.seniors.length === 0 ? (
@@ -24,9 +24,9 @@ export default async function SeniorsPage() {
             description="This view will populate once Nomi begins collecting direct check-in observations."
           />
         ) : (
-          <div className="grid gap-5 lg:grid-cols-2">
+          <div className="space-y-2">
             {data.seniors.map((senior) => (
-              <SeniorCard key={senior.id} senior={senior} />
+              <SeniorRow key={senior.id} senior={senior} />
             ))}
           </div>
         )}

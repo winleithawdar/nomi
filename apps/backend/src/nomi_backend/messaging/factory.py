@@ -12,4 +12,8 @@ def build_messaging_provider(settings: MessagingSettings) -> MessagingProvider:
         from .whatsapp_cloud import WhatsAppCloudProvider
 
         return WhatsAppCloudProvider(settings)
+    if settings.provider == "telegram":
+        from .telegram_bot import TelegramBotProvider
+
+        return TelegramBotProvider(settings)
     raise ValueError(f"Unknown messaging provider: {settings.provider}")

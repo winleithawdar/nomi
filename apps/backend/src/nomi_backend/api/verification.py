@@ -9,7 +9,12 @@ from sqlalchemy.orm import Session
 from nomi_backend.persistence.database import SessionLocal, create_db_engine
 from nomi_backend.persistence.schema import Base
 from nomi_backend.services.verification_service import VerificationService
-from nomi_backend.verification.models import AlertStatus, VerificationOutcome
+from nomi_backend.verification.models import (
+    AlertStatus,
+    VerificationOutcome,
+    VerificationProcessResult,
+    VerificationStatus,
+)
 
 router = APIRouter(prefix="/api/v1", tags=["verification"])
 
@@ -29,6 +34,48 @@ def get_verification_service(
     session: Annotated[Session, Depends(get_db_session)],
 ) -> VerificationService:
     return VerificationService.from_session(session)
+
+
+def _deliver_verification_messages(
+    result: VerificationProcessResult,
+    verification_service: VerificationService,
+) -> None:
+    """Best-effort outbound delivery. Never fails the verification API."""
+    try:
+        from nomi_backend.api.app import get_checkin_service
+        from nomi_backend.checkins.pipeline import (
+            ContactNotFound,
+            send_caregiver_alert,
+            send_verification_prompt,
+        )
+        from nomi_backend.messaging.protocol import MessagingError
+    except Exception:
+        return
+
+    try:
+        checkin_service = get_checkin_service()
+        verification = result.verification
+        if (
+            verification.check_in_message
+            and verification.status is VerificationStatus.AWAITING_RESPONSE
+        ):
+            send_verification_prompt(
+                checkin_service,
+                verification.senior_id,
+                verification.check_in_message,
+            )
+        if result.alert is not None:
+            body = verification_service.format_caregiver_message(result.alert)
+            send_caregiver_alert(
+                checkin_service,
+                result.alert.senior_id,
+                body,
+            )
+            verification_service.mark_alert_delivered(result.alert.id)
+    except (ContactNotFound, MessagingError):
+        return
+    except Exception:
+        return
 
 
 class StartVerificationRequest(BaseModel):
@@ -60,6 +107,7 @@ def start_verification(
             status_code=400,
             detail="Detection is not actionable for verification.",
         )
+    _deliver_verification_messages(result, service)
     return result.to_dict()
 
 
@@ -82,6 +130,7 @@ def record_verification_response(
     )
     if result is None:
         raise HTTPException(status_code=404, detail="Verification request not found.")
+    _deliver_verification_messages(result, service)
     return result.to_dict()
 
 
@@ -94,6 +143,7 @@ def record_no_response(
     result = service.handle_no_response(verification_id)
     if result is None:
         raise HTTPException(status_code=404, detail="Verification request not found.")
+    _deliver_verification_messages(result, service)
     return result.to_dict()
 
 

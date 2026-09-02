@@ -35,11 +35,12 @@ def _checkin(
     response_wamid: str | None = None,
     response_received_at: datetime | None = None,
     wellbeing_score: float | None = None,
+    sent_at: datetime = SENT_AT,
 ) -> CheckIn:
     return CheckIn(
         id=checkin_id,
         senior_id=senior_id,
-        sent_at=SENT_AT,
+        sent_at=sent_at,
         outbound_wamid=outbound_wamid,
         status=status,
         response_wamid=response_wamid,
@@ -131,6 +132,30 @@ class CheckInStoreTest(unittest.TestCase):
             )
         )
         self.assertIsNone(self.store.get_open_checkin("senior-1"))
+
+    def test_latest_checkin_returns_max_sent_at(self) -> None:
+        self.assertIsNone(self.store.latest_checkin("senior-1"))
+        older = self.store.create_checkin(_checkin())
+        newer = self.store.create_checkin(
+            _checkin(
+                checkin_id="checkin-2",
+                sent_at=SENT_AT + timedelta(hours=1),
+                status=CheckInStatus.RESPONDED,
+                response_wamid="wamid.in-1",
+                response_received_at=RECEIVED_AT + timedelta(hours=1),
+                wellbeing_score=5.0,
+            )
+        )
+        self.store.create_checkin(
+            _checkin(
+                checkin_id="checkin-other",
+                senior_id="senior-2",
+                sent_at=SENT_AT + timedelta(hours=2),
+            )
+        )
+        self.assertEqual(self.store.latest_checkin("senior-1"), newer)
+        self.assertEqual(self.store.get_open_checkin("senior-1"), older)
+        self.assertIsNone(self.store.latest_checkin("missing"))
 
 
 class WellbeingParseTest(unittest.TestCase):

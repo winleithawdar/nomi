@@ -75,6 +75,7 @@ class WhatsAppWebhookTest(unittest.TestCase):
                 "WHATSAPP_VERIFY_TOKEN": VERIFY_TOKEN,
                 "WHATSAPP_APP_SECRET": APP_SECRET,
                 "NOMI_MESSAGING_PROVIDER": "mock",
+                "NOMI_SCHEDULER_ENABLED": "0",
             },
         )
         self._env.start()

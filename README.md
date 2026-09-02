@@ -21,7 +21,7 @@ The repository includes an integrated MVP slice:
 
 - personal baseline plus anomaly and longitudinal change detection
 - senior-first verification and deterministic caregiver escalation
-- WhatsApp Cloud API webhook and mock-provider fallback
+- Telegram Bot API live demo plus mock-provider fallback (WhatsApp Cloud API remains in the codebase)
 - caregiver dashboard connected to FastAPI
 - Supabase migrations and deterministic demo data
 

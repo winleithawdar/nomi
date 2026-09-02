@@ -10,6 +10,7 @@ class MockMessagingProvider:
 
     def __init__(self) -> None:
         self.sent: list[OutboundMessage] = []
+        self.bodies: list[str] = []
 
     def send_text(
         self,
@@ -25,4 +26,5 @@ class MockMessagingProvider:
             correlation_id=correlation_id,
         )
         self.sent.append(message)
+        self.bodies.append(body)
         return message
