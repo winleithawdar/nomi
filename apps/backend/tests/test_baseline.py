@@ -41,7 +41,6 @@ def interaction(
         wellbeing_score=wellbeing_score,
     )
 
-
 class BaselineCalculatorTest(unittest.TestCase):
     def setUp(self) -> None:
         self.calculator = BaselineCalculator(
