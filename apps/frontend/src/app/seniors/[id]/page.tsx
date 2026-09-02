@@ -7,7 +7,11 @@ import { RecentObservations } from "@/components/recent-observations";
 import { ResponseLatencyChart } from "@/components/response-latency-chart";
 import { StatusBadge } from "@/components/status-badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { getSeniorDetail } from "@/lib/api/seniors";
+import {
+  getLatestAnomaly,
+  getSeniorDetail,
+  getVerificationStatus,
+} from "@/lib/api/seniors";
 import { ApiError } from "@/lib/api/client";
 import { formatDailyRate, formatMinutes, formatPercent } from "@/lib/format";
 
@@ -21,7 +25,11 @@ export default async function SeniorDetailPage({
   const { id } = await params;
 
   try {
-    const data = await getSeniorDetail(id);
+    const [data, detection, verification] = await Promise.all([
+      getSeniorDetail(id),
+      getLatestAnomaly(id),
+      getVerificationStatus(id),
+    ]);
     const { senior, baseline } = data;
 
     return (
@@ -48,6 +56,47 @@ export default async function SeniorDetailPage({
           </Card>
 
           <BaselineStatusCard senior={senior} baseline={baseline} />
+
+          <section className="grid gap-5 lg:grid-cols-2" aria-label="Detection and verification">
+            <Card>
+              <CardContent className="space-y-3 p-6">
+                <p className="text-sm font-medium text-[var(--primary)]">Latest detection</p>
+                <h2 className="text-xl font-semibold">
+                  {detection.detected ? "Change noticed" : "No unusual change detected"}
+                </h2>
+                <p className="text-sm text-[var(--muted-foreground)]">
+                  {detection.summary ||
+                    (detection.status === "insufficient_history"
+                      ? "Nomi is still collecting enough personal history for this detector."
+                      : "Recent behaviour remains within this senior's usual pattern.")}
+                </p>
+                <p className="text-xs capitalize text-[var(--muted-foreground)]">
+                  {detection.status === "ok" ? `${detection.confidence} confidence` : "Learning"}
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="space-y-3 p-6">
+                <p className="text-sm font-medium text-[var(--primary)]">Verification</p>
+                <h2 className="text-xl font-semibold">
+                  {verification.active_verification
+                    ? "Waiting for senior response"
+                    : verification.latest_alert
+                      ? "Caregiver attention requested"
+                      : "No active verification"}
+                </h2>
+                <p className="text-sm text-[var(--muted-foreground)]">
+                  {verification.active_verification?.check_in_message ??
+                    verification.latest_alert?.verification_outcome ??
+                    "Nomi will check with the senior first when a meaningful change is detected."}
+                </p>
+                {verification.latest_alert ? (
+                  <p className="text-sm"><span className="font-medium">Suggested next step:</span> {verification.latest_alert.suggested_action}</p>
+                ) : null}
+              </CardContent>
+            </Card>
+          </section>
 
           <section className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
             <BaselineMetricCard

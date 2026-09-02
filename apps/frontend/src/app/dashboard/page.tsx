@@ -3,12 +3,13 @@ import { EmptyState } from "@/components/empty-state";
 import { MetricCard } from "@/components/metric-card";
 import { PageHeader } from "@/components/page-header";
 import { SeniorCard } from "@/components/senior-card";
-import { getSeniors } from "@/lib/api/seniors";
+import { Card, CardContent } from "@/components/ui/card";
+import { getAlerts, getSeniors } from "@/lib/api/seniors";
 
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
-  const data = await getSeniors();
+  const [data, alerts] = await Promise.all([getSeniors(), getAlerts()]);
 
   return (
     <AppShell currentPath="/dashboard">
@@ -40,6 +41,38 @@ export default async function DashboardPage() {
             value={data.summary.recent_checkins}
             description="Interactions captured over the most recent seven days."
           />
+        </section>
+
+        <section className="space-y-4" aria-label="Caregiver alerts">
+          <div className="space-y-1">
+            <h2 className="text-2xl font-semibold tracking-tight">Latest caregiver alerts</h2>
+            <p className="text-sm text-[var(--muted-foreground)]">
+              Alerts appear only after Nomi verifies the detected change or receives no reassuring response.
+            </p>
+          </div>
+          {alerts.length === 0 ? (
+            <EmptyState
+              title="No caregiver alerts"
+              description="There are no unresolved changes requiring caregiver attention."
+            />
+          ) : (
+            <div className="grid gap-4 lg:grid-cols-2">
+              {alerts.slice(0, 4).map((alert) => (
+                <Card key={alert.id}>
+                  <CardContent className="space-y-3 p-5">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="font-semibold">{alert.what_changed}</p>
+                      <span className="rounded-full bg-[var(--muted)] px-2.5 py-1 text-xs font-medium capitalize">
+                        {alert.status}
+                      </span>
+                    </div>
+                    <p className="text-sm text-[var(--muted-foreground)]">{alert.context}</p>
+                    <p className="text-sm"><span className="font-medium">Next step:</span> {alert.suggested_action}</p>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
         </section>
 
         <section className="space-y-4">
