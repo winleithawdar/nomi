@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 from datetime import datetime, timezone
 from typing import Any
@@ -10,15 +11,32 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel
 
-from nomi_backend.api.verification import router as verification_router
-from nomi_backend.checkins import CheckInService, InMemoryCheckInStore
+from nomi_backend.api.verification import (
+    router as verification_router,
+    set_result_delivery_hook,
+)
+from nomi_backend.checkins import (
+    CheckInService,
+    DatabaseCheckInStore,
+    InMemoryCheckInStore,
+    SeniorContact,
+    WhatsAppEvent,
+    parse_wellbeing_score,
+    send_caregiver_alert,
+    send_verification_prompt,
+)
 from nomi_backend.checkins.pipeline import ContactNotFound
 from nomi_backend.messaging.factory import build_messaging_provider
-from nomi_backend.messaging.protocol import MessagingError
+from nomi_backend.messaging.protocol import ContactRole, MessagingError
 from nomi_backend.messaging.settings import MessagingSettings
 from nomi_backend.messaging.whatsapp_cloud import verify_meta_signature
+from nomi_backend.persistence.database import SessionLocal
 from nomi_backend.services.demo_repository import DemoBaselineRepository
 from nomi_backend.services.database_repository import DatabaseBaselineRepository
+from nomi_backend.services.verification_service import VerificationService
+from nomi_backend.verification.models import VerificationOutcome, VerificationProcessResult
+
+logger = logging.getLogger(__name__)
 
 app = FastAPI(
     title="Nomi Backend API",
@@ -43,12 +61,17 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+data_mode = os.getenv("NOMI_DATA_MODE", "demo").lower()
 repository = (
     DatabaseBaselineRepository()
-    if os.getenv("NOMI_DATA_MODE", "demo").lower() == "database"
+    if data_mode == "database"
     else DemoBaselineRepository()
 )
-store = InMemoryCheckInStore()
+store = (
+    DatabaseCheckInStore(SessionLocal)
+    if data_mode == "database"
+    else InMemoryCheckInStore()
+)
 _checkin_service: CheckInService | None = None
 
 
@@ -69,9 +92,10 @@ def get_checkin_service() -> CheckInService:
 
 
 def reset_checkin_service() -> CheckInService:
-    """Rebuild the check-in service from current env; reset store in place."""
+    """Rebuild the service; clear only the disposable in-memory test store."""
     global _checkin_service
-    store.__init__()
+    if isinstance(store, InMemoryCheckInStore):
+        store.__init__()
     _checkin_service = None
     return get_checkin_service()
 
@@ -117,6 +141,38 @@ class CreateCheckInRequest(BaseModel):
     body: str | None = None
 
 
+class UpsertContactRequest(BaseModel):
+    wa_id: str
+    phone_e164: str | None = None
+
+
+class MarkMissedRequest(BaseModel):
+    as_of: datetime | None = None
+
+
+@app.put("/api/v1/seniors/{senior_id}/contacts/{role}")
+def upsert_senior_contact(
+    senior_id: str,
+    role: ContactRole,
+    payload: UpsertContactRequest,
+) -> dict:
+    """MVP administration endpoint for registering senior/caregiver WhatsApp IDs."""
+    contact = store.upsert_contact(
+        SeniorContact(
+            senior_id=senior_id,
+            wa_id=payload.wa_id,
+            role=role,
+            phone_e164=payload.phone_e164,
+        )
+    )
+    return {
+        "senior_id": contact.senior_id,
+        "wa_id": contact.wa_id,
+        "role": contact.role.value,
+        "phone_e164": contact.phone_e164,
+    }
+
+
 @app.post("/api/v1/checkins", status_code=201)
 def create_checkin(payload: CreateCheckInRequest) -> dict:
     try:
@@ -134,6 +190,27 @@ def create_checkin(payload: CreateCheckInRequest) -> dict:
         "status": checkin.status.value,
         "sent_at": checkin.sent_at.isoformat(),
         "outbound_wamid": checkin.outbound_wamid,
+    }
+
+
+@app.post("/api/v1/checkins/{checkin_id}/missed")
+def mark_checkin_missed(checkin_id: str, payload: MarkMissedRequest) -> dict:
+    try:
+        interaction = get_checkin_service().mark_missed(
+            checkin_id,
+            as_of=payload.as_of or datetime.now(timezone.utc),
+        )
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error))
+    _process_new_interaction(interaction)
+    return {
+        "checkin_id": checkin_id,
+        "status": "missed",
+        "interaction": {
+            "senior_id": interaction.senior_id,
+            "occurred_at": interaction.occurred_at.isoformat(),
+            "missed_checkin": interaction.missed_checkin,
+        },
     }
 
 
@@ -215,9 +292,157 @@ def _handle_inbound_text_message(service: CheckInService, message: Any) -> None:
         )
     except (TypeError, ValueError, OSError, OverflowError):
         return
+    contact = store.get_contact_by_wa_id(wa_id)
+    open_checkin = (
+        store.get_open_checkin(contact.senior_id)
+        if contact is not None and contact.role is ContactRole.SENIOR
+        else None
+    )
+
+    if open_checkin is not None:
+        interaction = service.handle_inbound_message(
+            wa_id=wa_id,
+            wamid=wamid,
+            received_at=received_at,
+            text=text,
+        )
+        if interaction is not None:
+            _process_new_interaction(interaction)
+        return
+
+    if contact is not None and contact.role is ContactRole.SENIOR:
+        if _handle_verification_reply(
+            service,
+            senior_id=contact.senior_id,
+            wa_id=wa_id,
+            wamid=wamid,
+            received_at=received_at,
+            text=text,
+        ):
+            return
+
+    # Preserve P3's audit record for unknown senders or messages with no open flow.
     service.handle_inbound_message(
         wa_id=wa_id,
         wamid=wamid,
         received_at=received_at,
         text=text,
     )
+
+
+def _process_new_interaction(interaction) -> None:
+    if data_mode != "database":
+        return
+    change = repository.get_change_payload(interaction.senior_id)
+    anomaly = repository.get_anomaly_payload(interaction.senior_id)
+    detection = next(
+        (
+            item
+            for item in (change, anomaly)
+            if item is not None and item.get("detected") and item.get("status") == "ok"
+        ),
+        None,
+    )
+    if detection is None:
+        return
+
+    senior_detail = repository.get_senior_detail_payload(interaction.senior_id)
+    senior_name = senior_detail["senior"]["name"] if senior_detail else None
+    with SessionLocal() as session:
+        verification_service = VerificationService.from_session(session)
+        result = verification_service.start_from_detection_payload(
+            detection,
+            senior_name=senior_name,
+        )
+    if result is not None:
+        _dispatch_verification_result(get_checkin_service(), result)
+
+
+def _handle_verification_reply(
+    service: CheckInService,
+    *,
+    senior_id: str,
+    wa_id: str,
+    wamid: str,
+    received_at: datetime,
+    text: str | None,
+) -> bool:
+    with SessionLocal() as session:
+        verification_service = VerificationService.from_session(session)
+        active = verification_service.repository.get_active_verification(senior_id)
+        if active is None:
+            return False
+        recorded = store.record_inbound_event(
+            WhatsAppEvent(
+                inbound_wamid=wamid,
+                wa_id=wa_id,
+                received_at=received_at,
+                checkin_id=None,
+                ignored_reason=None,
+                verification_request_id=active.id,
+                event_type="verification_response",
+            )
+        )
+        if not recorded:
+            return True
+        outcome = _verification_outcome_from_text(text)
+        if outcome is None:
+            logger.info("Verification reply could not be classified for %s", senior_id)
+            return True
+        result = verification_service.record_response(
+            active.id,
+            outcome,
+            response_text=text,
+        )
+    if result is not None:
+        _dispatch_verification_result(service, result, send_prompt=False)
+    return True
+
+
+def _verification_outcome_from_text(text: str | None) -> VerificationOutcome | None:
+    score = parse_wellbeing_score(text)
+    if score is not None:
+        if score >= 4:
+            return VerificationOutcome.REASSURING
+        if score <= 2:
+            return VerificationOutcome.HELP_NEEDED
+    normalized = (text or "").strip().lower()
+    reassuring_phrases = ("i'm fine", "im fine", "all good", "okay", "ok", "no help")
+    help_phrases = ("help", "not okay", "not ok", "call me", "visit me")
+    if any(phrase in normalized for phrase in help_phrases):
+        return VerificationOutcome.HELP_NEEDED
+    if any(phrase in normalized for phrase in reassuring_phrases):
+        return VerificationOutcome.REASSURING
+    return None
+
+
+def _dispatch_verification_result(
+    service: CheckInService,
+    result: VerificationProcessResult,
+    *,
+    send_prompt: bool = True,
+) -> None:
+    try:
+        if result.alert is not None:
+            message = result.caregiver_message or "Nomi has an update requiring your attention."
+            send_caregiver_alert(service, result.alert.senior_id, message)
+            with SessionLocal() as session:
+                VerificationService.from_session(session).mark_alert_delivered(result.alert.id)
+        elif send_prompt:
+            send_verification_prompt(
+                service,
+                result.verification.senior_id,
+                result.verification.check_in_message,
+            )
+    except (ContactNotFound, MessagingError):
+        # Meta webhooks must still return 200 so that delivery is not retried forever.
+        logger.exception("Unable to deliver Nomi verification or caregiver message")
+
+
+set_result_delivery_hook(
+    lambda result, send_prompt: _dispatch_verification_result(
+        get_checkin_service(),
+        result,
+        send_prompt=send_prompt,
+    )
+)

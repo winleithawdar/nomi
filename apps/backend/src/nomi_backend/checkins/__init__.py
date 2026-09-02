@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from .models import CheckIn, CheckInStatus, SeniorContact, WhatsAppEvent
+from .database_store import DatabaseCheckInStore
 from .pipeline import (
     CheckInService,
     ContactNotFound,
@@ -16,6 +17,7 @@ __all__ = [
     "CheckInStatus",
     "CheckInStore",
     "ContactNotFound",
+    "DatabaseCheckInStore",
     "InMemoryCheckInStore",
     "SeniorContact",
     "WhatsAppEvent",

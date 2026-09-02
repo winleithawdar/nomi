@@ -74,7 +74,9 @@ class DatabaseBaselineRepository:
         return self._delegate().get_change_payload(senior_id)
 
 
-def _aware(value: datetime | None) -> datetime | None:
+def _aware(value: datetime | str | None) -> datetime | None:
+    if isinstance(value, str):
+        value = datetime.fromisoformat(value)
     if value is None or value.tzinfo is not None:
         return value
     return value.replace(tzinfo=UTC)
