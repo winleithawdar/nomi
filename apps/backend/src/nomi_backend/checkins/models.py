@@ -40,3 +40,5 @@ class WhatsAppEvent:
     received_at: datetime
     checkin_id: str | None
     ignored_reason: str | None
+    verification_request_id: str | None = None
+    event_type: str = "checkin_response"
