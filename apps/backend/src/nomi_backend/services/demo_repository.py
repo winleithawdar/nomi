@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
 from nomi_backend.baseline import BaselineCalculator, SeniorInteraction
-from nomi_backend.detection import AnomalyDetector
+from nomi_backend.detection import AnomalyDetector, ChangeDetector
 
 
 @dataclass(frozen=True)
@@ -16,15 +16,22 @@ class SeniorProfile:
 
 
 class DemoBaselineRepository:
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        seniors: list[SeniorProfile] | None = None,
+        interactions: list[SeniorInteraction] | None = None,
+    ) -> None:
         self.calculator = BaselineCalculator()
         self.anomaly_detector = AnomalyDetector()
-        self.seniors = [
+        self.change_detector = ChangeDetector()
+        self.seniors = seniors if seniors is not None else [
             SeniorProfile("senior-1", "Mdm Tan", "Mother", "Late 70s"),
             SeniorProfile("senior-2", "Mr Rahman", "Father", "Early 80s"),
             SeniorProfile("senior-3", "Auntie Lee", "Aunt", "Mid 70s"),
         ]
-        self.interactions = self._build_demo_interactions()
+        self.interactions = (
+            interactions if interactions is not None else self._build_demo_interactions()
+        )
 
     def list_seniors_payload(self) -> dict:
         summaries = []
@@ -111,6 +118,13 @@ class DemoBaselineRepository:
             senior_id, self._interactions_for(senior_id)
         ).to_dict()
 
+    def get_change_payload(self, senior_id: str) -> dict | None:
+        if not any(item.id == senior_id for item in self.seniors):
+            return None
+        return self.change_detector.detect(
+            senior_id, self._interactions_for(senior_id)
+        ).to_dict()
+
     def _interactions_for(self, senior_id: str) -> list[SeniorInteraction]:
         return [item for item in self.interactions if item.senior_id == senior_id]
 
@@ -157,7 +171,7 @@ class DemoBaselineRepository:
         return datetime(2026, 8, 30, 9, 0, tzinfo=UTC)
 
     def _build_demo_interactions(self) -> list[SeniorInteraction]:
-        start = datetime(2026, 8, 18, 9, 0, tzinfo=UTC)
+        start = datetime(2026, 8, 1, 9, 0, tzinfo=UTC)
 
         def build(
             senior_id: str,
@@ -180,20 +194,25 @@ class DemoBaselineRepository:
                 wellbeing_score=wellbeing_score,
             )
 
-        return [
-            build("senior-1", 0, 22, wellbeing_score=4.0),
-            build("senior-1", 1, 27, wellbeing_score=4.0),
-            build("senior-1", 2, 24, wellbeing_score=4.0),
-            build("senior-1", 4, 32, wellbeing_score=3.0),
-            build("senior-1", 5, 29, wellbeing_score=4.0),
-            build("senior-1", 7, 26, wellbeing_score=4.0),
-            build("senior-1", 9, 31, wellbeing_score=3.0),
-            build("senior-1", 11, 28, wellbeing_score=4.0),
+        established_normal = [
+            build(
+                "senior-1",
+                day,
+                24 + (day % 5),
+                wellbeing_score=4.0 if day % 6 else 3.0,
+            )
+            for day in range(25)
+        ]
+        meaningful_change = [
+            build("senior-1", 25, 180, wellbeing_score=1.0),
+        ]
+        other_seniors = [
             build("senior-2", 0, 18),
             build("senior-2", 3, None, missed_checkin=True),
             build("senior-2", 6, 20),
             build("senior-2", 10, None, missed_checkin=True),
-            build("senior-3", 8, 14, wellbeing_score=5.0),
-            build("senior-3", 10, 16, wellbeing_score=4.0),
-            build("senior-3", 12, 17, wellbeing_score=4.0),
+            build("senior-3", 20, 14, wellbeing_score=5.0),
+            build("senior-3", 22, 16, wellbeing_score=4.0),
+            build("senior-3", 24, 17, wellbeing_score=4.0),
         ]
+        return [*established_normal, *meaningful_change, *other_seniors]

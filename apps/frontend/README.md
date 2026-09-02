@@ -1,13 +1,12 @@
 # Frontend
 
-This folder is reserved for the future Next.js caregiver dashboard.
+This is the Next.js caregiver dashboard for Nomi. Server components load senior baselines,
+detections, verification state, and caregiver alerts from FastAPI.
 
-Suggested future structure:
+Create `.env.local`:
 
-```text
-apps/frontend/
-├── app/ or src/app/
-├── components/
-├── lib/
-└── tests/
+```env
+NOMI_API_BASE_URL=http://127.0.0.1:8000
 ```
+
+Then run `npm ci` and `npm run dev`.
