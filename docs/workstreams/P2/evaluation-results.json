@@ -1,0 +1,133 @@
+{
+  "banner": "Prototype evaluation on synthetic data \u2014 not clinical validation.",
+  "config": {
+    "cusum_clamp": 4.0,
+    "cusum_h": 5.0,
+    "cusum_k": 0.5,
+    "epsilon": 1e-06,
+    "min_rel_std": 0.12,
+    "min_sustained_points": 3,
+    "recent_min_points": 4,
+    "recent_window_points": 7,
+    "reference_min_points": 5,
+    "shift_z_threshold": 1.5,
+    "trend_slope_threshold": 0.4
+  },
+  "detectors": {
+    "change_detector": {
+      "detection_delay_median": 5.0,
+      "detection_delay_p90": 8.0,
+      "false_alert_rate": 0.15,
+      "n_changed": 180,
+      "n_stable": 60,
+      "precision": 0.9523809523809523,
+      "recall": 1.0
+    },
+    "fixed_threshold": {
+      "detection_delay_median": 8.0,
+      "detection_delay_p90": 14.0,
+      "false_alert_rate": 0.0,
+      "n_changed": 180,
+      "n_stable": 60,
+      "precision": 1.0,
+      "recall": 0.7
+    }
+  },
+  "per_scenario": {
+    "gradual_frequency_decline": {
+      "flagged": 30,
+      "labelled_change": true,
+      "n": 30
+    },
+    "gradual_latency_increase": {
+      "flagged": 30,
+      "labelled_change": true,
+      "n": 30
+    },
+    "isolated_late_response": {
+      "flagged": 6,
+      "labelled_change": false,
+      "n": 30
+    },
+    "recovery_to_normal": {
+      "flagged": 30,
+      "labelled_change": true,
+      "n": 30
+    },
+    "repeated_missed_checkins": {
+      "flagged": 30,
+      "labelled_change": true,
+      "n": 30
+    },
+    "stable": {
+      "flagged": 3,
+      "labelled_change": false,
+      "n": 30
+    },
+    "sudden_cessation": {
+      "flagged": 30,
+      "labelled_change": true,
+      "n": 30
+    },
+    "worsening_wellbeing": {
+      "flagged": 30,
+      "labelled_change": true,
+      "n": 30
+    }
+  },
+  "seed": 20260901,
+  "selected_window": 7,
+  "seniors_per_scenario": 30,
+  "window_sweep": [
+    {
+      "detection_delay_median": 4.0,
+      "detection_delay_p90": 6.0,
+      "false_alert_rate": 0.38333333333333336,
+      "n_changed": 180,
+      "n_stable": 60,
+      "precision": 0.8866995073891626,
+      "recall": 1.0,
+      "window": 4
+    },
+    {
+      "detection_delay_median": 4.0,
+      "detection_delay_p90": 6.099999999999994,
+      "false_alert_rate": 0.23333333333333334,
+      "n_changed": 180,
+      "n_stable": 60,
+      "precision": 0.9278350515463918,
+      "recall": 1.0,
+      "window": 5
+    },
+    {
+      "detection_delay_median": 5.0,
+      "detection_delay_p90": 8.0,
+      "false_alert_rate": 0.15,
+      "n_changed": 180,
+      "n_stable": 60,
+      "precision": 0.9523809523809523,
+      "recall": 1.0,
+      "window": 7
+    },
+    {
+      "detection_delay_median": 5.0,
+      "detection_delay_p90": 8.0,
+      "false_alert_rate": 0.23333333333333334,
+      "n_changed": 180,
+      "n_stable": 60,
+      "precision": 0.9278350515463918,
+      "recall": 1.0,
+      "window": 10
+    },
+    {
+      "detection_delay_median": 5.0,
+      "detection_delay_p90": 9.0,
+      "false_alert_rate": 0.2,
+      "n_changed": 180,
+      "n_stable": 60,
+      "precision": 0.9375,
+      "recall": 1.0,
+      "window": 14
+    }
+  ]
+}
