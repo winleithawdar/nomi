@@ -98,7 +98,7 @@ def build_verification_outcome_text(outcome: VerificationOutcome, response_text:
 
 def build_suggested_action(outcome: VerificationOutcome, detection: DetectionResult) -> str:
   if outcome == VerificationOutcome.HELP_NEEDED:
-    return "Consider reaching out soon to understand what support may be helpful."
+    return "Please reach out soon to understand what support may be helpful."
   if outcome == VerificationOutcome.NO_RESPONSE:
     return "Consider a phone call or visit to check in when convenient."
   if outcome == VerificationOutcome.REPEATED_CHANGE:

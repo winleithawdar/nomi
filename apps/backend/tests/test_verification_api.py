@@ -10,6 +10,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
 
 from nomi_backend.api.app import app
 from nomi_backend.api.verification import get_db_session, get_verification_service
@@ -65,7 +66,12 @@ def _detection_payload(
 
 class VerificationApiTest(unittest.TestCase):
   def setUp(self) -> None:
-    self.engine = create_engine("sqlite:///:memory:", future=True)
+    self.engine = create_engine(
+      "sqlite://",
+      future=True,
+      connect_args={"check_same_thread": False},
+      poolclass=StaticPool,
+    )
     Base.metadata.create_all(self.engine)
     self.session_factory = sessionmaker(bind=self.engine, autoflush=False, autocommit=False)
     self.session = self.session_factory()

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 from datetime import datetime, timezone
 from typing import Any
 
@@ -17,6 +18,7 @@ from nomi_backend.messaging.protocol import MessagingError
 from nomi_backend.messaging.settings import MessagingSettings
 from nomi_backend.messaging.whatsapp_cloud import verify_meta_signature
 from nomi_backend.services.demo_repository import DemoBaselineRepository
+from nomi_backend.services.database_repository import DatabaseBaselineRepository
 
 app = FastAPI(
     title="Nomi Backend API",
@@ -24,15 +26,28 @@ app = FastAPI(
     description="Baseline, detection, and verification endpoints for Nomi.",
 )
 
+allowed_origins = [
+    origin.strip()
+    for origin in os.getenv(
+        "NOMI_CORS_ORIGINS",
+        "http://localhost:3000,http://127.0.0.1:3000",
+    ).split(",")
+    if origin.strip()
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-repository = DemoBaselineRepository()
+repository = (
+    DatabaseBaselineRepository()
+    if os.getenv("NOMI_DATA_MODE", "demo").lower() == "database"
+    else DemoBaselineRepository()
+)
 store = InMemoryCheckInStore()
 _checkin_service: CheckInService | None = None
 
@@ -63,6 +78,11 @@ def reset_checkin_service() -> CheckInService:
 app.include_router(verification_router)
 
 
+@app.get("/health")
+def health() -> dict:
+    return {"status": "ok", "service": "nomi-backend", "version": app.version}
+
+
 @app.get("/api/v1/seniors")
 def list_seniors() -> dict:
     return repository.list_seniors_payload()
@@ -79,6 +99,14 @@ def get_senior_baseline(senior_id: str) -> dict:
 @app.get("/api/v1/seniors/{senior_id}/detections/anomaly")
 def get_latest_anomaly(senior_id: str) -> dict:
     payload = repository.get_anomaly_payload(senior_id)
+    if payload is None:
+        raise HTTPException(status_code=404, detail="Senior not found.")
+    return payload
+
+
+@app.get("/api/v1/seniors/{senior_id}/detections/change")
+def get_latest_change(senior_id: str) -> dict:
+    payload = repository.get_change_payload(senior_id)
     if payload is None:
         raise HTTPException(status_code=404, detail="Senior not found.")
     return payload

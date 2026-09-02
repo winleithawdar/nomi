@@ -25,6 +25,8 @@ uvicorn nomi_backend.api:app --reload
 | Variable | Default | Purpose |
 |---|---|---|
 | `DATABASE_URL` | `sqlite:///./nomi_verification.db` | SQLAlchemy connection for verification/alert persistence |
+| `NOMI_DATA_MODE` | `demo` | Use deterministic `demo` data or PostgreSQL `database` reads |
+| `NOMI_CORS_ORIGINS` | Local frontend URLs | Comma-separated allowed frontend origins |
 
 For Supabase, set `DATABASE_URL` to the PostgreSQL connection string and apply migrations
 from `infra/supabase/migrations/`.
@@ -40,6 +42,7 @@ from `infra/supabase/migrations/`.
 | `GET` | `/api/v1/seniors/{id}/verification-status` | Active verification for dashboard |
 | `GET` | `/api/v1/seniors/{id}/verifications` | Verification history |
 | `GET` | `/api/v1/seniors/{id}/alerts` | Caregiver alert history |
+| `GET` | `/api/v1/seniors/{id}/detections/change` | Latest longitudinal change result |
 | `GET` | `/api/v1/verifications/{id}/check-in-message` | P3: outbound senior check-in text |
 | `GET` | `/api/v1/alerts` | P5: dashboard alert feed (optional filters) |
 | `GET` | `/api/v1/alerts/{id}/caregiver-message` | P3: outbound caregiver alert text |

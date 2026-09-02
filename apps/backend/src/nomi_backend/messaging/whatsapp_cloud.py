@@ -42,7 +42,10 @@ class WhatsAppCloudProvider:
         client: httpx.Client | None = None,
     ) -> None:
         self._settings = settings
-        self._client = client or httpx.Client(timeout=DEFAULT_TIMEOUT_SECONDS)
+        self._client = client or httpx.Client(
+            timeout=DEFAULT_TIMEOUT_SECONDS,
+            trust_env=False,
+        )
 
     def send_text(
         self,
