@@ -168,3 +168,9 @@ apps/frontend/    Next.js caregiver dashboard
 docs/             architecture, setup, and workstream documentation
 infra/supabase/   PostgreSQL migrations
 ```
+
+## Demo (presentation)
+
+See [`demo/README.md`](demo/README.md) for how to use the app, and
+[`demo/SCENARIO.md`](demo/SCENARIO.md) for the full Mdm Tan → Nomi → caregiver story
+covering LEARN → NOTICE → VERIFY → SUPPORT.
