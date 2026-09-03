@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -20,6 +21,20 @@ router = APIRouter(prefix="/api/v1", tags=["verification"])
 
 _db_engine = create_db_engine()
 Base.metadata.create_all(_db_engine)
+
+_result_delivery_hook: Callable[[VerificationProcessResult, bool], None] | None = None
+
+
+def set_result_delivery_hook(
+    hook: Callable[[VerificationProcessResult, bool], None] | None,
+) -> None:
+    global _result_delivery_hook
+    _result_delivery_hook = hook
+
+
+def _deliver_result(result: VerificationProcessResult, *, send_prompt: bool) -> None:
+    if _result_delivery_hook is not None:
+        _result_delivery_hook(result, send_prompt)
 
 
 def get_db_session() -> Session:

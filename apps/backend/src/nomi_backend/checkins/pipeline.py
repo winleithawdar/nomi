@@ -115,7 +115,7 @@ class CheckInService:
             wellbeing_score=wellbeing_score,
         )
         self.store.save_checkin(closed)
-        return SeniorInteraction(
+        interaction = SeniorInteraction(
             senior_id=closed.senior_id,
             occurred_at=received_at,
             interaction_type="checkin_response",
@@ -126,6 +126,7 @@ class CheckInService:
             checkin_id=closed.id,
             source="nomi",
         )
+        return self.store.save_interaction(interaction)
 
     def mark_missed(self, checkin_id: str, *, as_of: datetime) -> SeniorInteraction:
         checkin = self.store.get_checkin(checkin_id)
@@ -142,7 +143,7 @@ class CheckInService:
             wellbeing_score=None,
         )
         self.store.save_checkin(missed)
-        return SeniorInteraction(
+        interaction = SeniorInteraction(
             senior_id=missed.senior_id,
             occurred_at=as_of,
             interaction_type="checkin_missed",
@@ -153,6 +154,7 @@ class CheckInService:
             checkin_id=missed.id,
             source="nomi",
         )
+        return self.store.save_interaction(interaction)
 
 
 def send_verification_prompt(

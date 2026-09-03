@@ -28,6 +28,8 @@ class CheckInStore(Protocol):
     def record_inbound_event(self, event: WhatsAppEvent) -> bool:
         """Return False if inbound_wamid already seen (duplicate)."""
 
+    def save_interaction(self, interaction: SeniorInteraction) -> SeniorInteraction: ...
+
     def interactions_for(self, senior_id: str) -> list[SeniorInteraction]: ...
 
     def list_senior_ids(self) -> list[str]: ...
@@ -100,6 +102,10 @@ class InMemoryCheckInStore:
             return False
         self._events[event.inbound_wamid] = event
         return True
+
+    def save_interaction(self, interaction: SeniorInteraction) -> SeniorInteraction:
+        # In memory, closed check-ins are already mapped by interactions_for().
+        return interaction
 
     def interactions_for(self, senior_id: str) -> list[SeniorInteraction]:
         interactions: list[SeniorInteraction] = []

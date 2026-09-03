@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import os
 from contextlib import asynccontextmanager, suppress
 from datetime import datetime, timezone
@@ -23,8 +24,13 @@ from nomi_backend.messaging.protocol import ContactRole, MessagingError
 from nomi_backend.messaging.settings import MessagingSettings
 from nomi_backend.messaging.telegram_bot import verify_telegram_secret
 from nomi_backend.messaging.whatsapp_cloud import verify_meta_signature
+from nomi_backend.persistence.database import SessionLocal
 from nomi_backend.services.demo_repository import DemoBaselineRepository
 from nomi_backend.services.database_repository import DatabaseBaselineRepository
+from nomi_backend.services.verification_service import VerificationService
+from nomi_backend.verification.models import VerificationOutcome, VerificationProcessResult
+
+logger = logging.getLogger(__name__)
 
 DEMO_SENIOR_ID = "senior-1"
 
@@ -91,12 +97,17 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+data_mode = os.getenv("NOMI_DATA_MODE", "demo").lower()
 repository = (
     DatabaseBaselineRepository()
-    if os.getenv("NOMI_DATA_MODE", "demo").lower() == "database"
+    if data_mode == "database"
     else DemoBaselineRepository()
 )
-store = InMemoryCheckInStore()
+store = (
+    DatabaseCheckInStore(SessionLocal)
+    if data_mode == "database"
+    else InMemoryCheckInStore()
+)
 _checkin_service: CheckInService | None = None
 
 
@@ -133,9 +144,10 @@ def get_checkin_service() -> CheckInService:
 
 
 def reset_checkin_service() -> CheckInService:
-    """Rebuild the check-in service from current env; reset store in place."""
+    """Rebuild the service; clear only the disposable in-memory test store."""
     global _checkin_service
-    store.__init__()
+    if isinstance(store, InMemoryCheckInStore):
+        store.__init__()
     _checkin_service = None
     seed_demo_contact_from_env()
     return get_checkin_service()
@@ -386,6 +398,36 @@ def _handle_inbound_text_message(service: CheckInService, message: Any) -> None:
         )
     except (TypeError, ValueError, OSError, OverflowError):
         return
+    contact = store.get_contact_by_wa_id(wa_id)
+    open_checkin = (
+        store.get_open_checkin(contact.senior_id)
+        if contact is not None and contact.role is ContactRole.SENIOR
+        else None
+    )
+
+    if open_checkin is not None:
+        interaction = service.handle_inbound_message(
+            wa_id=wa_id,
+            wamid=wamid,
+            received_at=received_at,
+            text=text,
+        )
+        if interaction is not None:
+            _process_new_interaction(interaction)
+        return
+
+    if contact is not None and contact.role is ContactRole.SENIOR:
+        if _handle_verification_reply(
+            service,
+            senior_id=contact.senior_id,
+            wa_id=wa_id,
+            wamid=wamid,
+            received_at=received_at,
+            text=text,
+        ):
+            return
+
+    # Preserve P3's audit record for unknown senders or messages with no open flow.
     service.handle_inbound_message(
         wa_id=wa_id,
         wamid=wamid,
