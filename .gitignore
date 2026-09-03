@@ -63,6 +63,8 @@ local_settings.py
 db.sqlite3
 db.sqlite3-journal
 nomi_verification.db
+*.db
+.DS_Store
 
 # Flask stuff:
 instance/
@@ -153,6 +155,8 @@ activemq-data/
 # Environments
 .env
 .env.local
+.env.*
+!.env.example
 .envrc
 .venv
 env/
@@ -212,6 +216,7 @@ tempCodeRunnerFile.py
 node_modules/
 .next/
 out/
+.vercel/
 *.tsbuildinfo
 
 # Ruff stuff:

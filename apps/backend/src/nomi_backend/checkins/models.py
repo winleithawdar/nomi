@@ -31,6 +31,7 @@ class CheckIn:
     response_wamid: str | None
     response_received_at: datetime | None
     wellbeing_score: float | None
+    meal: str = "extra"
 
 
 @dataclass(frozen=True)

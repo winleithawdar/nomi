@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import os
 import sys
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
@@ -19,6 +21,8 @@ from nomi_backend.services.verification_service import VerificationService
 
 class EndToEndIntegrationTest(unittest.TestCase):
     def setUp(self) -> None:
+        self._env = patch.dict(os.environ, {"NOMI_SCHEDULER_ENABLED": "0"})
+        self._env.start()
         engine = create_engine(
             "sqlite://",
             future=True,
@@ -41,6 +45,7 @@ class EndToEndIntegrationTest(unittest.TestCase):
     def tearDown(self) -> None:
         app.dependency_overrides.clear()
         self.session.close()
+        self._env.stop()
 
     def test_detection_to_unresolved_verification_to_dashboard_alert(self) -> None:
         seniors = self.client.get("/api/v1/seniors")

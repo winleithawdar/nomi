@@ -1,4 +1,4 @@
-import { apiGet } from "./client";
+import { ApiError, apiGet, apiPost } from "./client";
 
 export type BaselineStatus = "learning" | "stable";
 
@@ -108,6 +108,64 @@ export interface VerificationStatusResponse {
   latest_alert: CaregiverAlert | null;
 }
 
+export type LiveCheckInStatus = "sent" | "responded" | "missed";
+
+export interface LiveCheckInSnapshot {
+  id: string;
+  status: LiveCheckInStatus;
+  sent_at: string;
+  response_received_at?: string | null;
+  wellbeing_score?: number | null;
+}
+
+export interface LiveCheckInResponse {
+  senior_id: string;
+  contact_configured: boolean;
+  open_checkin: Pick<LiveCheckInSnapshot, "id" | "status" | "sent_at"> | null;
+  latest: LiveCheckInSnapshot | null;
+}
+
+export interface SendCheckInResponse {
+  id: string;
+  senior_id: string;
+  status: LiveCheckInStatus;
+  sent_at: string;
+  outbound_wamid?: string | null;
+}
+
+export type MealSlot = "breakfast" | "lunch" | "dinner";
+export type SessionMeal = MealSlot | "extra";
+export type SessionLabel = "as_usual" | "changed_from_usual" | "needs_you_now";
+export type TrackLevel = 0 | 1 | 2;
+
+export interface SeniorSchedule {
+  next_meal: MealSlot;
+  next_at_iso: string;
+  timezone: string;
+}
+
+export interface SessionAssessment {
+  id: string;
+  meal: SessionMeal;
+  label: SessionLabel;
+  suggested_step: string;
+  reasons: string[];
+  rhythm_level: TrackLevel;
+  self_report_level: TrackLevel;
+  language_level: TrackLevel;
+  latency_minutes: number | null;
+  median_latency: number | null;
+  wellbeing: number | null;
+  median_wellbeing: number | null;
+  tfidf_similarity: number | null;
+  lexicon_hits: string[];
+  closed_at: string | null;
+}
+
+export interface LatestSessionResponse {
+  session: SessionAssessment | null;
+}
+
 export function getSeniors(): Promise<SeniorsResponse> {
   return apiGet("/api/v1/seniors");
 }
@@ -124,7 +182,62 @@ export function getVerificationStatus(seniorId: string): Promise<VerificationSta
   return apiGet(`/api/v1/seniors/${encodeURIComponent(seniorId)}/verification-status`);
 }
 
-export async function getAlerts(): Promise<CaregiverAlert[]> {
-  const data = await apiGet<{ alerts: CaregiverAlert[] }>("/api/v1/alerts?limit=10");
+export async function getAlerts(limit = 50): Promise<CaregiverAlert[]> {
+  const data = await apiGet<{ alerts: CaregiverAlert[] }>(`/api/v1/alerts?limit=${limit}`);
   return data.alerts;
+}
+
+export async function getLiveCheckin(seniorId: string): Promise<LiveCheckInResponse | null> {
+  try {
+    return await apiGet<LiveCheckInResponse>(
+      `/api/v1/seniors/${encodeURIComponent(seniorId)}/live-checkin`,
+    );
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 404) {
+      return null;
+    }
+    throw error;
+  }
+}
+
+export function sendCheckIn(seniorId: string): Promise<SendCheckInResponse> {
+  return apiPost("/api/v1/checkins", { senior_id: seniorId });
+}
+
+export async function getSchedule(seniorId: string): Promise<SeniorSchedule | null> {
+  try {
+    return await apiGet<SeniorSchedule>(
+      `/api/v1/seniors/${encodeURIComponent(seniorId)}/schedule`,
+    );
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 404) {
+      return null;
+    }
+    throw error;
+  }
+}
+
+export async function getLatestSession(seniorId: string): Promise<LatestSessionResponse | null> {
+  try {
+    return await apiGet<LatestSessionResponse>(
+      `/api/v1/seniors/${encodeURIComponent(seniorId)}/sessions/latest`,
+    );
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 404) {
+      return null;
+    }
+    throw error;
+  }
+}
+
+export function startSeniorVerification(
+  seniorId: string,
+  seniorName: string,
+  detection: DetectionResponse,
+): Promise<unknown> {
+  return apiPost("/api/v1/verifications", {
+    senior_id: seniorId,
+    senior_name: seniorName,
+    detection,
+  });
 }

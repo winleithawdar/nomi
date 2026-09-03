@@ -1,23 +1,16 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { NumberTicker } from "@/components/number-ticker";
 
 export function MetricCard({
   label,
   value,
-  description,
 }: {
   label: string;
-  value: string | number;
-  description: string;
+  value: number;
 }) {
   return (
-    <Card>
-      <CardHeader className="pb-3">
-        <p className="text-sm text-[var(--muted-foreground)]">{label}</p>
-        <CardTitle className="text-3xl">{value}</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <p className="text-sm leading-6 text-[var(--muted-foreground)]">{description}</p>
-      </CardContent>
-    </Card>
+    <div className="rounded-2xl border border-[var(--border)] bg-white px-3 py-3 text-center">
+      <NumberTicker value={value} className="text-2xl font-semibold" />
+      <p className="mt-1 text-xs leading-5 text-[var(--muted-foreground)]">{label}</p>
+    </div>
   );
 }

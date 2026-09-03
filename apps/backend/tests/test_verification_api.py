@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import os
 import sys
 import unittest
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
@@ -12,8 +14,9 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from nomi_backend.api.app import app
+from nomi_backend.api.app import app, reset_checkin_service, store
 from nomi_backend.api.verification import get_db_session, get_verification_service
+from nomi_backend.checkins.models import SeniorContact
 from nomi_backend.detection.contract import (
   ChangeDirection,
   Confidence,
@@ -22,6 +25,7 @@ from nomi_backend.detection.contract import (
   DetectionStatus,
   SignalContribution,
 )
+from nomi_backend.messaging.protocol import ContactRole
 from nomi_backend.persistence.repository import VerificationRepository
 from nomi_backend.persistence.schema import Base
 from nomi_backend.services.verification_service import VerificationService
@@ -66,6 +70,8 @@ def _detection_payload(
 
 class VerificationApiTest(unittest.TestCase):
   def setUp(self) -> None:
+    self._env = patch.dict(os.environ, {"NOMI_SCHEDULER_ENABLED": "0"})
+    self._env.start()
     self.engine = create_engine(
       "sqlite://",
       future=True,
@@ -92,6 +98,7 @@ class VerificationApiTest(unittest.TestCase):
   def tearDown(self) -> None:
     app.dependency_overrides.clear()
     self.session.close()
+    self._env.stop()
 
   def test_start_verification_endpoint_returns_check_in_message(self) -> None:
     response = self.client.post(
@@ -221,6 +228,27 @@ class VerificationApiTest(unittest.TestCase):
   def test_get_verification_returns_404_for_unknown_id(self) -> None:
     response = self.client.get("/api/v1/verifications/missing-id")
     self.assertEqual(response.status_code, 404)
+
+  def test_start_verification_attempts_outbound_prompt_when_contact_seeded(self) -> None:
+    with patch.dict(os.environ, {"NOMI_MESSAGING_PROVIDER": "mock"}):
+      reset_checkin_service()
+      store.upsert_contact(SeniorContact("senior-1", "123456789", ContactRole.SENIOR))
+      with patch(
+        "nomi_backend.checkins.pipeline.send_verification_prompt"
+      ) as mocked_send:
+        response = self.client.post(
+          "/api/v1/verifications",
+          json={
+            "senior_id": "senior-1",
+            "senior_name": "Mdm Tan",
+            "detection": _detection_payload(),
+          },
+        )
+    self.assertEqual(response.status_code, 200)
+    mocked_send.assert_called_once()
+    args, kwargs = mocked_send.call_args
+    self.assertEqual(args[1], "senior-1")
+    self.assertIn("Mdm Tan", args[2])
 
 
 class VerificationRepositoryTest(unittest.TestCase):

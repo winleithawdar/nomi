@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Fraunces, Manrope } from "next/font/google";
 
 import "./globals.css";
@@ -14,8 +14,16 @@ const heading = Fraunces({
 });
 
 export const metadata: Metadata = {
-  title: "Nomi",
-  description: "Personal baseline dashboard for family caregivers.",
+  title: "Nomi | Caregiver Check-ins",
+  description: "Caregiver check-ins that follow each person's own usual pattern.",
+  applicationName: "Nomi",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#173a2e",
 };
 
 export default function RootLayout({

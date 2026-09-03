@@ -43,6 +43,25 @@ class MessagingSettingsTest(unittest.TestCase):
         self.assertEqual(settings.verify_token, "verify-placeholder")
         self.assertEqual(settings.app_secret, "secret-placeholder")
 
+    def test_telegram_provider_requires_bot_token(self) -> None:
+        env = {"NOMI_MESSAGING_PROVIDER": "telegram"}
+        with patch.dict(os.environ, env, clear=True):
+            with self.assertRaises(RuntimeError) as raised:
+                MessagingSettings.from_env()
+        self.assertIn("TELEGRAM_BOT_TOKEN", str(raised.exception))
+
+    def test_telegram_provider_loads_token_and_secret(self) -> None:
+        env = {
+            "NOMI_MESSAGING_PROVIDER": "telegram",
+            "TELEGRAM_BOT_TOKEN": "bot-token-placeholder",
+            "TELEGRAM_WEBHOOK_SECRET": "webhook-secret-placeholder",
+        }
+        with patch.dict(os.environ, env, clear=True):
+            settings = MessagingSettings.from_env()
+        self.assertEqual(settings.provider, "telegram")
+        self.assertEqual(settings.telegram_bot_token, "bot-token-placeholder")
+        self.assertEqual(settings.telegram_webhook_secret, "webhook-secret-placeholder")
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -3,7 +3,17 @@ from __future__ import annotations
 from datetime import datetime
 from uuid import uuid4
 
-from sqlalchemy import Boolean, DateTime, Float, ForeignKey, String, Text, UniqueConstraint, func
+from sqlalchemy import (
+    Boolean,
+    DateTime,
+    Float,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+    func,
+)
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from sqlalchemy.types import JSON, Uuid
 
@@ -122,3 +132,33 @@ class CaregiverAlertRecord(Base):
     DateTime(timezone=True), nullable=False, server_default=func.now()
   )
   delivered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class CheckInSessionRecord(Base):
+  __tablename__ = "checkin_sessions"
+
+  id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
+  senior_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+  checkin_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
+  meal: Mapped[str] = mapped_column(String(16), nullable=False, default="extra")
+  status: Mapped[str] = mapped_column(String(16), nullable=False, default="open")
+  senior_turns: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+  assessment: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+  created_at: Mapped[datetime] = mapped_column(
+    DateTime(timezone=True), nullable=False, server_default=func.now()
+  )
+  closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class CheckInMessageRecord(Base):
+  __tablename__ = "checkin_messages"
+
+  id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
+  session_id: Mapped[str] = mapped_column(
+    String(36), ForeignKey("checkin_sessions.id"), nullable=False, index=True
+  )
+  role: Mapped[str] = mapped_column(String(16), nullable=False)
+  body: Mapped[str] = mapped_column(Text, nullable=False)
+  created_at: Mapped[datetime] = mapped_column(
+    DateTime(timezone=True), nullable=False, server_default=func.now()
+  )

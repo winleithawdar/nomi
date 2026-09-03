@@ -27,7 +27,7 @@ export function SeniorCard({ senior }: { senior: SeniorSummary }) {
           <div className="grid gap-3 text-sm text-[var(--muted-foreground)] sm:grid-cols-2">
             <div className="flex items-center gap-2">
               <NotebookPen className="h-4 w-4 text-[var(--primary)]" />
-              <span>{senior.observation_count} observations</span>
+              <span>{senior.observation_count} check-ins</span>
             </div>
             <div className="flex items-center gap-2">
               <Clock3 className="h-4 w-4 text-[var(--primary)]" />
@@ -35,7 +35,7 @@ export function SeniorCard({ senior }: { senior: SeniorSummary }) {
             </div>
           </div>
           <div className="flex items-center justify-between border-t border-[var(--border)] pt-4 text-sm font-medium text-[var(--foreground)]">
-            <span>View personal baseline</span>
+            <span>View recent updates</span>
             <ArrowRight className="h-4 w-4" />
           </div>
         </CardContent>

@@ -1,5 +1,10 @@
 # Nomi Project Context
 
+> **Current demo decision:** Telegram Bot API is the live proof-of-concept
+> transport. This document records the original WhatsApp Cloud API integration
+> plan, which remains useful as a provider reference but is not required to run
+> or present the project.
+
 Nomi is an AI-powered senior-care support application for seniors ageing
 independently at home and their family/informal caregivers.
 

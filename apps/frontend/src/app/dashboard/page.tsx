@@ -1,98 +1,102 @@
+import type { Route } from "next";
+import Link from "next/link";
+
+import { AnimatedList } from "@/components/animated-list";
+import { AlertItem } from "@/components/alert-item";
 import { AppShell } from "@/components/app-shell";
+import { AttentionCard } from "@/components/attention-card";
 import { EmptyState } from "@/components/empty-state";
 import { MetricCard } from "@/components/metric-card";
-import { PageHeader } from "@/components/page-header";
-import { SeniorCard } from "@/components/senior-card";
-import { Card, CardContent } from "@/components/ui/card";
+import { StatusBadge } from "@/components/status-badge";
 import { getAlerts, getSeniors } from "@/lib/api/seniors";
 
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
-  const [data, alerts] = await Promise.all([getSeniors(), getAlerts()]);
+  const [data, alerts] = await Promise.all([getSeniors(), getAlerts(10)]);
+  const names = new Map(data.seniors.map((senior) => [senior.id, senior.name]));
+  const [featuredAlert, ...otherAlerts] = alerts;
 
   return (
-    <AppShell currentPath="/dashboard">
-      <div className="space-y-8">
-        <PageHeader
-          eyebrow="Caregiver overview"
-          title="Baseline learning across the people you support"
-          description="See who is still building a recent interaction baseline and who already has an established personal pattern."
-        />
+    <AppShell>
+      <div className="space-y-7">
+        <div className="space-y-1">
+          <p className="text-sm text-[var(--muted-foreground)]">Good to see you, Sarah</p>
+          <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">How is everyone?</h1>
+          <p className="text-sm leading-6 text-[var(--muted-foreground)]">
+            A simple view of the people you care for.
+          </p>
+        </div>
 
-        <section className="grid gap-5 md:grid-cols-2 xl:grid-cols-4" aria-label="Summary metrics">
-          <MetricCard
-            label="Seniors monitored"
-            value={data.summary.seniors_monitored}
-            description="Total people currently included in the caregiver view."
-          />
-          <MetricCard
-            label="Currently learning"
-            value={data.summary.seniors_learning}
-            description="Seniors whose personal baseline is still being established."
-          />
-          <MetricCard
-            label="Baselines established"
-            value={data.summary.baselines_established}
-            description="Seniors with enough recent observations for a stable baseline."
-          />
-          <MetricCard
-            label="Recent check-ins"
-            value={data.summary.recent_checkins}
-            description="Interactions captured over the most recent seven days."
-          />
-        </section>
-
-        <section className="space-y-4" aria-label="Caregiver alerts">
-          <div className="space-y-1">
-            <h2 className="text-2xl font-semibold tracking-tight">Latest caregiver alerts</h2>
-            <p className="text-sm text-[var(--muted-foreground)]">
-              Alerts appear only after Nomi verifies the detected change or receives no reassuring response.
-            </p>
+        <section className="space-y-3" aria-label="Needs you now">
+          <div className="flex items-end justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-semibold tracking-tight">Needs you now</h2>
+              <p className="text-sm text-[var(--muted-foreground)]">
+                Updates that may need your attention.
+              </p>
+            </div>
+            <Link href={"/alerts" as Route} className="text-sm font-medium text-[var(--primary)]">
+              All alerts
+            </Link>
           </div>
           {alerts.length === 0 ? (
             <EmptyState
-              title="No caregiver alerts"
-              description="There are no unresolved changes requiring caregiver attention."
+              title="Nothing needs you right now"
+              description="Nomi will let you know if a check-in needs your attention."
             />
           ) : (
-            <div className="grid gap-4 lg:grid-cols-2">
-              {alerts.slice(0, 4).map((alert) => (
-                <Card key={alert.id}>
-                  <CardContent className="space-y-3 p-5">
-                    <div className="flex items-center justify-between gap-3">
-                      <p className="font-semibold">{alert.what_changed}</p>
-                      <span className="rounded-full bg-[var(--muted)] px-2.5 py-1 text-xs font-medium capitalize">
-                        {alert.status}
-                      </span>
-                    </div>
-                    <p className="text-sm text-[var(--muted-foreground)]">{alert.context}</p>
-                    <p className="text-sm"><span className="font-medium">Next step:</span> {alert.suggested_action}</p>
-                  </CardContent>
-                </Card>
+            <AnimatedList>
+              {featuredAlert ? (
+                <AttentionCard>
+                  <AlertItem
+                    alert={featuredAlert}
+                    seniorName={names.get(featuredAlert.senior_id)}
+                    className="border-0 bg-transparent hover:bg-transparent"
+                  />
+                </AttentionCard>
+              ) : null}
+              {otherAlerts.slice(0, 2).map((alert) => (
+                <AlertItem key={alert.id} alert={alert} seniorName={names.get(alert.senior_id)} />
               ))}
-            </div>
+            </AnimatedList>
           )}
         </section>
 
-        <section className="space-y-4">
-          <div className="space-y-1">
-            <h2 className="text-2xl font-semibold tracking-tight">Senior overview</h2>
-            <p className="text-sm text-[var(--muted-foreground)]">
-              Select a senior to review their personal baseline and recent interaction pattern.
-            </p>
+        <section className="grid grid-cols-3 gap-2" aria-label="Summary">
+          <MetricCard label="Monitored" value={data.summary.seniors_monitored} />
+          <MetricCard label="Learning" value={data.summary.seniors_learning} />
+          <MetricCard label="Recent check-ins" value={data.summary.recent_checkins} />
+        </section>
+
+        <section className="space-y-3" aria-label="People">
+          <div className="flex items-end justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-semibold tracking-tight">People</h2>
+              <p className="text-sm text-[var(--muted-foreground)]">See recent check-ins and updates for each person.</p>
+            </div>
+            <Link href={"/seniors" as Route} className="text-sm font-medium text-[var(--primary)]">
+              View all
+            </Link>
           </div>
           {data.seniors.length === 0 ? (
             <EmptyState
               title="No seniors yet"
-              description="Once check-ins begin, Nomi will start building a personal baseline here."
+              description="Once check-ins begin, you will see each person&apos;s recent activity here."
               actionHref="/seniors"
-              actionLabel="View seniors"
+              actionLabel="View people"
             />
           ) : (
-            <div className="grid gap-5 lg:grid-cols-2">
+            <div className="flex flex-wrap gap-2">
               {data.seniors.map((senior) => (
-                <SeniorCard key={senior.id} senior={senior} />
+                <Link
+                  key={senior.id}
+                  href={`/seniors/${senior.id}` as Route}
+                  className="inline-flex min-h-11 items-center gap-2 rounded-full border border-[var(--border)] bg-white px-3 py-2 text-sm"
+                >
+                  <span className="font-medium">{senior.name}</span>
+                  <StatusBadge status={senior.baseline_status} />
+                </Link>
               ))}
             </div>
           )}

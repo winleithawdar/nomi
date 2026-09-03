@@ -19,6 +19,8 @@ class CheckInStore(Protocol):
 
     def get_open_checkin(self, senior_id: str) -> CheckIn | None: ...
 
+    def latest_checkin(self, senior_id: str) -> CheckIn | None: ...
+
     def get_checkin(self, checkin_id: str) -> CheckIn | None: ...
 
     def save_checkin(self, checkin: CheckIn) -> CheckIn: ...
@@ -29,6 +31,10 @@ class CheckInStore(Protocol):
     def save_interaction(self, interaction: SeniorInteraction) -> SeniorInteraction: ...
 
     def interactions_for(self, senior_id: str) -> list[SeniorInteraction]: ...
+
+    def list_senior_ids(self) -> list[str]: ...
+
+    def list_checkins(self, senior_id: str) -> list[CheckIn]: ...
 
 
 class InMemoryCheckInStore:
@@ -74,6 +80,16 @@ class InMemoryCheckInStore:
             return None
         return max(open_rows, key=lambda checkin: checkin.sent_at)
 
+    def latest_checkin(self, senior_id: str) -> CheckIn | None:
+        rows = [
+            checkin
+            for checkin in self._checkins.values()
+            if checkin.senior_id == senior_id
+        ]
+        if not rows:
+            return None
+        return max(rows, key=lambda checkin: checkin.sent_at)
+
     def get_checkin(self, checkin_id: str) -> CheckIn | None:
         return self._checkins.get(checkin_id)
 
@@ -101,6 +117,22 @@ class InMemoryCheckInStore:
                 interactions.append(mapped)
         interactions.sort(key=lambda item: item.occurred_at)
         return interactions
+
+    def list_senior_ids(self) -> list[str]:
+        return sorted(
+            {
+                contact.senior_id
+                for contact in self._contacts_by_senior_role.values()
+                if contact.role is ContactRole.SENIOR
+            }
+        )
+
+    def list_checkins(self, senior_id: str) -> list[CheckIn]:
+        return [
+            checkin
+            for checkin in self._checkins.values()
+            if checkin.senior_id == senior_id
+        ]
 
 
 def _interaction_from_checkin(checkin: CheckIn) -> SeniorInteraction | None:

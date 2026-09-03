@@ -20,6 +20,8 @@ class MessagingSettings:
     app_secret: str
     graph_api_version: str
     default_checkin_body: str
+    telegram_bot_token: str = ""
+    telegram_webhook_secret: str = ""
 
     @classmethod
     def from_env(cls) -> MessagingSettings:
@@ -32,12 +34,17 @@ class MessagingSettings:
             "WHATSAPP_GRAPH_API_VERSION", DEFAULT_GRAPH_API_VERSION
         )
         default_checkin_body = os.environ.get("NOMI_CHECKIN_BODY") or DEFAULT_CHECKIN_BODY
+        telegram_bot_token = os.environ.get("TELEGRAM_BOT_TOKEN", "")
+        telegram_webhook_secret = os.environ.get("TELEGRAM_WEBHOOK_SECRET", "")
 
         if provider == "whatsapp":
             if not access_token:
                 raise RuntimeError("WHATSAPP_ACCESS_TOKEN is required when provider is whatsapp")
             if not phone_number_id:
                 raise RuntimeError("WHATSAPP_PHONE_NUMBER_ID is required when provider is whatsapp")
+        if provider == "telegram":
+            if not telegram_bot_token:
+                raise RuntimeError("TELEGRAM_BOT_TOKEN is required when provider is telegram")
 
         return cls(
             provider=provider,
@@ -47,4 +54,6 @@ class MessagingSettings:
             app_secret=app_secret,
             graph_api_version=graph_api_version,
             default_checkin_body=default_checkin_body,
+            telegram_bot_token=telegram_bot_token,
+            telegram_webhook_secret=telegram_webhook_secret,
         )
