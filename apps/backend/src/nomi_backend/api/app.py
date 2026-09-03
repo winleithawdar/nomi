@@ -16,7 +16,11 @@ from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel
 
 from nomi_backend.api.verification import router as verification_router
-from nomi_backend.checkins import CheckInService, InMemoryCheckInStore
+from nomi_backend.checkins import (
+    CheckInService,
+    DatabaseCheckInStore,
+    InMemoryCheckInStore,
+)
 from nomi_backend.checkins.models import CheckIn, SeniorContact
 from nomi_backend.checkins.pipeline import ContactNotFound
 from nomi_backend.messaging.factory import build_messaging_provider

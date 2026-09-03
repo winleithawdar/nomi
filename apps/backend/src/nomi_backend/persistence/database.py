@@ -5,8 +5,11 @@ from collections.abc import Generator
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
+from dotenv import load_dotenv
 
-DEFAULT_DATABASE_URL = "sqlite:///./nomi_verification.db"
+load_dotenv() 
+
+DEFAULT_DATABASE_URL = "sqlite:///./nomi_verification.db?sslmode=require"
 
 
 def get_database_url() -> str:
