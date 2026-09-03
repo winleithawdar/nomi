@@ -10,8 +10,8 @@ apps/backend/
 └── tests/             # Backend test suite
 ```
 
-The backend includes the personal baseline layer (Winnie), P1/P2 detection, and the P4
-verification + escalation + caregiver alert engine.
+The backend includes the personal baseline layer, behavioural change detection,
+and the verification, escalation, and caregiver alert engine.
 
 For the live proof of concept, use the Telegram provider. The WhatsApp provider
 is kept as a compatible adapter, but requires Meta-specific setup and is not the
@@ -41,13 +41,13 @@ DATABASE_URL=sqlite:///./nomi_demo.db NOMI_DATA_MODE=demo NOMI_MESSAGING_PROVIDE
 For Supabase, set `DATABASE_URL` to the PostgreSQL connection string and apply migrations
 from `infra/supabase/migrations/`.
 
-## Verification API (P3 / P5)
+## Verification And Alerts API
 
 | Method | Path | Purpose |
 |---|---|---|
 | `POST` | `/api/v1/verifications` | Start senior-first verification from a detection payload |
 | `POST` | `/api/v1/verifications/{id}/response` | Record senior response (`reassuring` or `help_needed`) |
-| `POST` | `/api/v1/verifications/{id}/no-response` | Handle verification timeout (P3 scheduler) |
+| `POST` | `/api/v1/verifications/{id}/no-response` | Handle a verification timeout |
 | `GET` | `/api/v1/verifications/{id}` | Fetch verification detail |
 | `GET` | `/api/v1/seniors/{id}/verification-status` | Active verification for dashboard |
 | `GET` | `/api/v1/seniors/{id}/verifications` | Verification history |
@@ -56,11 +56,11 @@ from `infra/supabase/migrations/`.
 | `PUT` | `/api/v1/seniors/{id}/contacts/{role}` | Register a senior or caregiver messaging contact |
 | `POST` | `/api/v1/checkins` | Send and persist a check-in |
 | `POST` | `/api/v1/checkins/{id}/missed` | Close a missed check-in and run detection |
-| `GET` | `/api/v1/verifications/{id}/check-in-message` | P3: outbound senior check-in text |
-| `GET` | `/api/v1/alerts` | P5: dashboard alert feed (optional filters) |
-| `GET` | `/api/v1/alerts/{id}/caregiver-message` | P3: outbound caregiver alert text |
+| `GET` | `/api/v1/verifications/{id}/check-in-message` | Outbound senior check-in text |
+| `GET` | `/api/v1/alerts` | Dashboard alert feed (optional filters) |
+| `GET` | `/api/v1/alerts/{id}/caregiver-message` | Outbound caregiver alert text |
 | `GET` | `/api/v1/alerts/{id}` | Alert detail |
-| `POST` | `/api/v1/alerts/{id}/delivered` | P3: mark alert delivered |
+| `POST` | `/api/v1/alerts/{id}/delivered` | Mark alert delivered |
 
 ## Tests
 

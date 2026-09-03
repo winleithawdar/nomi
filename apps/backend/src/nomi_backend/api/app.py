@@ -459,7 +459,7 @@ def _handle_inbound_text_message(service: CheckInService, message: Any) -> None:
         ):
             return
 
-    # Preserve P3's audit record for unknown senders or messages with no open flow.
+    # Preserve an audit record for unknown senders or messages with no open flow.
     service.handle_inbound_message(
         wa_id=wa_id,
         wamid=wamid,

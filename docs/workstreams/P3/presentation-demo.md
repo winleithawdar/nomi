@@ -1,4 +1,4 @@
-# P3 — Caregiver presentation demo
+# Caregiver Presentation Demo
 
 Keep ngrok, uvicorn, and `npm run dev` running. Phone-width (~390px).
 Nomi is a personal check-in — not a diagnosis. Session scoring is

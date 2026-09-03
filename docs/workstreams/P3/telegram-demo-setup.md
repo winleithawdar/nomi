@@ -1,4 +1,4 @@
-# P3 — Telegram Bot API Demo Setup
+# Telegram Bot API Demo Setup
 
 Live demo transport for Nomi check-ins and verification prompts. WhatsApp
 Cloud API code stays in the backend; this path is the one you run for a
@@ -17,7 +17,7 @@ Companion docs:
 - Implementation notes: [implementation-notes.md](implementation-notes.md)
 - WhatsApp leftover: [meta-cloud-api-setup.md](meta-cloud-api-setup.md)
 
-P6 owns production HTTPS. For this proof, ngrok (or similar) stands in.
+Production deployment needs HTTPS. For this proof, ngrok (or similar) stands in.
 
 ## 0. What you will collect
 
