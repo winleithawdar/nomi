@@ -47,3 +47,9 @@ See `docs/database-setup.md` to switch to PostgreSQL, and run the full demo from
 ```bash
 python scripts/run_demo_scenario.py --outcome no-response
 ```
+
+## Demo (presentation)
+
+See [`demo/README.md`](demo/README.md) for how to use the app, and
+[`demo/SCENARIO.md`](demo/SCENARIO.md) for the full Mdm Tan → Nomi → caregiver story
+covering LEARN → NOTICE → VERIFY → SUPPORT.
