@@ -16,7 +16,9 @@ import { getSeniors } from "@/lib/api/seniors";
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
-  const data = await getSeniors();
+  const [data, alerts] = await Promise.all([getSeniors(), getAlerts(10)]);
+  const names = new Map(data.seniors.map((senior) => [senior.id, senior.name]));
+  const [featuredAlert, ...otherAlerts] = alerts;
 
   const attentionSeniors = data.seniors.filter(
     (senior) => senior.status !== "stable"

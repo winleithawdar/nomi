@@ -7,8 +7,8 @@ AI-powered senior-care support focused on detecting meaningful changes from each
 ```text
 nomi/
 ├── apps/
-│   ├── backend/        # Python backend and baseline logic
-│   └── frontend/       # Reserved for future Next.js caregiver dashboard
+│   ├── backend/        # FastAPI pipeline, detection, verification and persistence
+│   └── frontend/       # Next.js caregiver dashboard
 ├── docs/
 │   └── architecture/   # Product and technical design notes
 └── infra/
@@ -17,14 +17,33 @@ nomi/
 
 ## Current Status
 
-The repository currently includes only the first backend slice for the personal baseline layer:
+The repository includes an integrated MVP slice:
 
-- recent per-senior behavioural baseline calculation
-- synthetic tests for cold start and rolling-window behavior
-- initial Supabase migration for interaction storage and baseline snapshots
+- personal baseline plus anomaly and longitudinal change detection
+- senior-first verification and deterministic caregiver escalation
+- Telegram Bot API live demo plus mock-provider fallback (WhatsApp Cloud API remains in the codebase)
+- caregiver dashboard connected to FastAPI
+- Supabase migrations and deterministic demo data
 
-## Next Planned Additions
+## Local run
 
-- `apps/frontend/` for the Next.js caregiver dashboard
-- FastAPI endpoints and services inside `apps/backend/`
-- additional anomaly detection layers once the baseline is in place
+```bash
+cd apps/backend
+python -m pip install -e .
+uvicorn nomi_backend.api:app --reload
+```
+
+In a second terminal:
+
+```bash
+cd apps/frontend
+npm ci
+npm run dev
+```
+
+Open `http://localhost:3000`. The default `NOMI_DATA_MODE=demo` works without Supabase.
+See `docs/database-setup.md` to switch to PostgreSQL, and run the full demo from the repo root:
+
+```bash
+python scripts/run_demo_scenario.py --outcome no-response
+```

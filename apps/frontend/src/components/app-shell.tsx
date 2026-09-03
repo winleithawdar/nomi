@@ -1,90 +1,91 @@
+"use client";
+
 import type { Route } from "next";
 import Link from "next/link";
-import { HeartHandshake, LayoutDashboard, Users } from "lucide-react";
+import { usePathname } from "next/navigation";
+import { Bell, HeartHandshake, Home, Users } from "lucide-react";
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 
 const navItems = [
-  { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
-  { href: "/seniors", label: "Seniors", icon: Users },
+  { href: "/dashboard", label: "Home", icon: Home },
+  { href: "/seniors", label: "People", icon: Users },
+  { href: "/alerts", label: "Alerts", icon: Bell },
 ] as const satisfies ReadonlyArray<{
   href: Route;
   label: string;
-  icon: typeof LayoutDashboard;
+  icon: typeof Home;
 }>;
 
-export function AppShell({
-  children,
-  currentPath,
-}: {
-  children: React.ReactNode;
-  currentPath: string;
-}) {
+function isActive(pathname: string, href: string) {
+  if (href === "/dashboard") return pathname === "/dashboard";
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
+export function AppShell({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+
   return (
-    <div className="min-h-screen bg-[var(--background)] text-[var(--foreground)]">
-      <div className="mx-auto grid min-h-screen max-w-7xl grid-cols-1 lg:grid-cols-[248px_minmax(0,1fr)]">
-        <aside className="border-b border-[var(--border)] bg-[var(--sidebar)] px-5 py-6 lg:border-b-0 lg:border-r">
-          <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[var(--primary)] text-[var(--primary-foreground)]">
+    <div className="min-h-dvh bg-[var(--background)] text-[var(--foreground)]">
+      <header
+        className="sticky top-0 z-30 border-b border-[var(--border)] bg-[var(--background)]/92 backdrop-blur-md"
+        style={{ paddingTop: "env(safe-area-inset-top)" }}
+      >
+        <div className="mx-auto flex max-w-lg items-center justify-between gap-3 px-4 py-3 md:max-w-3xl">
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[var(--primary)] text-[var(--primary-foreground)]">
               <HeartHandshake className="h-5 w-5" />
             </div>
-            <div>
+            <div className="min-w-0">
               <p className="font-semibold tracking-tight">Nomi</p>
-              <p className="text-sm text-[var(--muted-foreground)]">Caregiver dashboard</p>
+              <p className="truncate text-xs text-[var(--muted-foreground)]">Check-ins for your people</p>
             </div>
           </div>
-
-          <nav className="mt-8 flex flex-wrap gap-2 lg:flex-col" aria-label="Primary navigation">
-            {navItems.map((item) => {
-              const isActive = currentPath === item.href || currentPath.startsWith(`${item.href}/`);
-              const Icon = item.icon;
-
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={cn(
-                    "inline-flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium transition-colors",
-                    isActive
-                      ? "bg-white text-[var(--foreground)] shadow-sm ring-1 ring-[var(--border)]"
-                      : "text-[var(--muted-foreground)] hover:bg-white/70 hover:text-[var(--foreground)]",
-                  )}
-                >
-                  <Icon className="h-4 w-4" />
-                  <span>{item.label}</span>
-                </Link>
-              );
-            })}
-          </nav>
-
-          <div className="mt-8 rounded-3xl border border-[var(--border)] bg-white p-4">
-            <p className="text-sm font-medium">Baseline-first support</p>
-            <p className="mt-2 break-words text-sm leading-6 text-[var(--muted-foreground)]">
-              Nomi learns each senior&apos;s own recent interaction pattern before surfacing changes from usual.
-            </p>
+          <div className="flex shrink-0 items-center gap-2">
+            <div className="text-right">
+              <p className="text-sm font-medium">Sarah</p>
+              <p className="text-xs text-[var(--muted-foreground)]">Caregiver</p>
+            </div>
+            <Avatar>
+              <AvatarFallback>S</AvatarFallback>
+            </Avatar>
           </div>
-        </aside>
-
-        <div className="flex min-h-screen flex-col">
-          <header className="flex items-center justify-between border-b border-[var(--border)] bg-[var(--background)] px-5 py-4 sm:px-8">
-            <div>
-              <p className="text-sm text-[var(--muted-foreground)]">Personal normal, not population normal</p>
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="hidden text-right sm:block">
-                <p className="text-sm font-medium">Caregiver</p>
-                <p className="text-sm text-[var(--muted-foreground)]">Family account</p>
-              </div>
-              <Avatar>
-                <AvatarFallback>CG</AvatarFallback>
-              </Avatar>
-            </div>
-          </header>
-
-          <main className="flex-1 px-5 py-6 sm:px-8 sm:py-8">{children}</main>
         </div>
-      </div>
+      </header>
+
+      <main className="mx-auto w-full max-w-lg px-4 pt-5 pb-[calc(6rem+env(safe-area-inset-bottom))] md:max-w-3xl md:px-6 md:pt-8">
+        {children}
+      </main>
+
+      <nav
+        aria-label="Primary"
+        className="fixed inset-x-0 bottom-0 z-30 border-t border-[var(--border)] bg-[var(--background)]/95 backdrop-blur-md"
+        style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+      >
+        <div className="mx-auto grid max-w-lg grid-cols-3 md:max-w-3xl">
+          {navItems.map((item) => {
+            const active = isActive(pathname, item.href);
+            const Icon = item.icon;
+
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={cn(
+                  "flex min-h-11 flex-col items-center justify-center gap-0.5 py-2 text-xs font-medium transition-colors",
+                  active
+                    ? "text-[var(--primary)]"
+                    : "text-[var(--muted-foreground)] hover:text-[var(--foreground)]",
+                )}
+              >
+                <Icon className="h-5 w-5" aria-hidden />
+                <span>{item.label}</span>
+              </Link>
+            );
+          })}
+        </div>
+      </nav>
     </div>
   );
 }

@@ -1,22 +1,26 @@
+"use client";
+
+import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts";
+
+import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
 import type { ResponseLatencyPoint } from "@/lib/api/types";
 
-function buildPath(
-  points: ResponseLatencyPoint[],
-  width: number,
-  height: number,
-  valueKey: "response_latency_minutes" | "rolling_mean_minutes",
-) {
-  const values = points.map((point) => point[valueKey]);
-  const maxValue = Math.max(...values, 1);
-  const step = points.length > 1 ? width / (points.length - 1) : width;
+const chartConfig = {
+  observed: {
+    label: "Observed",
+    color: "var(--chart-1)",
+  },
+  mean: {
+    label: "Rolling mean",
+    color: "var(--chart-2)",
+  },
+} satisfies ChartConfig;
 
-  return points
-    .map((point, index) => {
-      const x = step * index;
-      const y = height - (point[valueKey] / maxValue) * height;
-      return `${index === 0 ? "M" : "L"} ${x} ${y}`;
-    })
-    .join(" ");
+function formatTick(value: string) {
+  return new Intl.DateTimeFormat("en-SG", {
+    month: "short",
+    day: "numeric",
+  }).format(new Date(value));
 }
 
 export function ResponseLatencyChart({ points }: { points: ResponseLatencyPoint[] }) {
@@ -28,14 +32,15 @@ export function ResponseLatencyChart({ points }: { points: ResponseLatencyPoint[
     );
   }
 
-  const width = 520;
-  const height = 180;
-  const latencyPath = buildPath(points, width, height, "response_latency_minutes");
-  const meanPath = buildPath(points, width, height, "rolling_mean_minutes");
+  const data = points.map((point) => ({
+    occurred_at: point.occurred_at,
+    observed: point.response_latency_minutes,
+    mean: point.rolling_mean_minutes,
+  }));
 
   return (
     <div className="rounded-3xl border border-[var(--border)] bg-white p-5">
-      <div className="mb-5 flex items-center justify-between gap-4">
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h3 className="font-semibold">Recent response latency</h3>
           <p className="text-sm text-[var(--muted-foreground)]">
@@ -44,43 +49,69 @@ export function ResponseLatencyChart({ points }: { points: ResponseLatencyPoint[
         </div>
         <div className="flex gap-4 text-xs text-[var(--muted-foreground)]">
           <div className="flex items-center gap-2">
-            <span className="h-2.5 w-2.5 rounded-full bg-[var(--primary)]" />
+            <span className="h-2.5 w-2.5 rounded-full bg-[var(--chart-1)]" />
             <span>Observed</span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="h-2.5 w-2.5 rounded-full bg-[var(--chart-secondary)]" />
+            <span className="h-2.5 w-2.5 rounded-full bg-[var(--chart-2)]" />
             <span>Rolling mean</span>
           </div>
         </div>
       </div>
-      <svg viewBox={`0 0 ${width} ${height + 36}`} className="h-[240px] w-full" role="img" aria-label="Response latency chart">
-        <line x1="0" y1={height} x2={width} y2={height} stroke="var(--border)" strokeWidth="1" />
-        <path d={meanPath} fill="none" stroke="var(--chart-secondary)" strokeWidth="3" strokeLinecap="round" />
-        <path d={latencyPath} fill="none" stroke="var(--primary)" strokeWidth="3" strokeLinecap="round" />
-        {points.map((point, index) => {
-          const values = points.map((item) => item.response_latency_minutes);
-          const maxValue = Math.max(...values, 1);
-          const step = points.length > 1 ? width / (points.length - 1) : width;
-          const x = step * index;
-          const y = height - (point.response_latency_minutes / maxValue) * height;
-
-          return <circle key={point.occurred_at} cx={x} cy={y} r="4" fill="var(--primary)" />;
-        })}
-        {points.map((point, index) => {
-          const step = points.length > 1 ? width / (points.length - 1) : width;
-          const x = step * index;
-          const label = new Intl.DateTimeFormat("en-SG", {
-            month: "short",
-            day: "numeric",
-          }).format(new Date(point.occurred_at));
-
-          return (
-            <text key={`${point.occurred_at}-label`} x={x} y={height + 24} textAnchor={index === 0 ? "start" : index === points.length - 1 ? "end" : "middle"} className="fill-[var(--muted-foreground)] text-[11px]">
-              {label}
-            </text>
-          );
-        })}
-      </svg>
+      <ChartContainer config={chartConfig} className="aspect-auto h-[220px] min-h-[200px] w-full">
+        <LineChart accessibilityLayer data={data} margin={{ left: 4, right: 8, top: 8, bottom: 0 }}>
+          <CartesianGrid vertical={false} stroke="var(--border)" />
+          <XAxis
+            dataKey="occurred_at"
+            tickLine={false}
+            axisLine={false}
+            tickMargin={8}
+            minTickGap={28}
+            tickFormatter={formatTick}
+          />
+          <YAxis
+            tickLine={false}
+            axisLine={false}
+            width={36}
+            tickFormatter={(value: number) => `${Math.round(value)}`}
+          />
+          <ChartTooltip
+            cursor={{ stroke: "var(--border)" }}
+            content={
+              <ChartTooltipContent
+                labelFormatter={(value) =>
+                  typeof value === "string" ? formatTick(value) : String(value ?? "")
+                }
+                formatter={(value, name) => (
+                  <div className="flex w-full items-center justify-between gap-6">
+                    <span className="text-[var(--muted-foreground)]">
+                      {name === "mean" ? "Rolling mean" : "Observed"}
+                    </span>
+                    <span className="font-mono font-medium tabular-nums">
+                      {typeof value === "number" ? `${Math.round(value)} min` : "—"}
+                    </span>
+                  </div>
+                )}
+              />
+            }
+          />
+          <Line
+            type="monotone"
+            dataKey="mean"
+            stroke="var(--color-mean)"
+            strokeWidth={2}
+            dot={false}
+          />
+          <Line
+            type="monotone"
+            dataKey="observed"
+            stroke="var(--color-observed)"
+            strokeWidth={2.5}
+            dot={{ r: 3, fill: "var(--color-observed)", strokeWidth: 0 }}
+            activeDot={{ r: 5 }}
+          />
+        </LineChart>
+      </ChartContainer>
     </div>
   );
 }
