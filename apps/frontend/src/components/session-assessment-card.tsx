@@ -127,7 +127,7 @@ export function SessionAssessmentCard({
           </p>
         ) : (
           <p className="text-sm leading-6 text-[var(--muted-foreground)]">
-            No meal assessment yet. Nomi will show the three tracks after the third reply.
+            No meal update yet. Nomi will share an update after a few replies.
           </p>
         )}
       </div>
@@ -167,8 +167,8 @@ export function SessionAssessmentCard({
               />
             </div>
             <p className="text-xs leading-5 text-[var(--muted-foreground)]">
-              Nomi is not diagnosing. Same three tracks every meal. Label is the highest track, not an
-              average. Updates after the third Telegram reply.
+              Nomi looks at reply timing, wellbeing, and language to decide whether to share an update.
+              This is not a diagnosis.
             </p>
           </div>
         </>

@@ -1,6 +1,8 @@
 # P3 Implementation Notes
 
-Finish-line notes for WhatsApp Cloud API integration and the check-in pipeline.
+Finish-line notes for the provider-based check-in pipeline. Telegram is the
+live proof-of-concept transport; WhatsApp Cloud API support is retained as a
+future-provider reference.
 P3 owns transport, webhook handling, and check-in bookkeeping. P4 owns
 verification timing and copy. P6 owns public HTTPS, Meta app wiring, and
 persisting the SQL schema.

@@ -42,19 +42,19 @@ export function ResponseLatencyChart({ points }: { points: ResponseLatencyPoint[
     <div className="rounded-3xl border border-[var(--border)] bg-white p-5">
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h3 className="font-semibold">Recent response latency</h3>
+          <h3 className="font-semibold">Reply timing</h3>
           <p className="text-sm text-[var(--muted-foreground)]">
-            Response timing over recent check-ins with a rolling personal baseline reference.
+            Each point shows how long it took to reply. The lighter line shows their recent usual time.
           </p>
         </div>
         <div className="flex gap-4 text-xs text-[var(--muted-foreground)]">
           <div className="flex items-center gap-2">
             <span className="h-2.5 w-2.5 rounded-full bg-[var(--chart-1)]" />
-            <span>Observed</span>
+            <span>Reply time</span>
           </div>
           <div className="flex items-center gap-2">
             <span className="h-2.5 w-2.5 rounded-full bg-[var(--chart-2)]" />
-            <span>Rolling mean</span>
+            <span>Usual time</span>
           </div>
         </div>
       </div>

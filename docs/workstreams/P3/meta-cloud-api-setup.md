@@ -1,5 +1,9 @@
 # P3 — Meta WhatsApp Cloud API Setup
 
+> **Reference only:** the submitted live proof of concept uses Telegram because
+> it is faster to configure and demonstrate end to end. Follow this guide only
+> when configuring the retained WhatsApp provider after the demo.
+
 From **no Meta developer account** to a local live round trip:
 
 **Nomi/FastAPI → WhatsApp → senior reply → Meta webhook → FastAPI**

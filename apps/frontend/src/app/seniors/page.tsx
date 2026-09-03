@@ -15,13 +15,13 @@ export default async function SeniorsPage() {
         <PageHeader
           eyebrow="People"
           title="People you support"
-          description="Each row shows whether Nomi is still learning their usual pattern or already has a personal baseline."
+          description="See recent check-ins and whether Nomi has enough history to understand what is usual for each person."
         />
 
         {data.seniors.length === 0 ? (
           <EmptyState
             title="No seniors available"
-            description="This view will populate once Nomi begins collecting direct check-in observations."
+            description="This view will fill in as check-ins begin."
           />
         ) : (
           <div className="space-y-2">

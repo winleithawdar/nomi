@@ -13,18 +13,23 @@ apps/backend/
 The backend includes the personal baseline layer (Winnie), P1/P2 detection, and the P4
 verification + escalation + caregiver alert engine.
 
+For the live proof of concept, use the Telegram provider. The WhatsApp provider
+is kept as a compatible adapter, but requires Meta-specific setup and is not the
+recommended local or presentation path.
+
 ## Run API
 
 ```bash
 pip install -e .
-uvicorn nomi_backend.api:app --reload
+DATABASE_URL=sqlite:///./nomi_demo.db NOMI_DATA_MODE=demo NOMI_MESSAGING_PROVIDER=mock \
+  uvicorn nomi_backend.api:app --reload
 ```
 
 ## Environment
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `DATABASE_URL` | `sqlite:///./nomi_verification.db` | SQLAlchemy connection for verification/alert persistence |
+| `DATABASE_URL` | `sqlite:///./nomi_verification.db` | SQLAlchemy connection for verification/alert persistence. Use a dedicated local `.db` file for demo runs. |
 | `NOMI_DATA_MODE` | `demo` | Use deterministic `demo` data or PostgreSQL `database` reads |
 | `NOMI_CORS_ORIGINS` | Local frontend URLs | Comma-separated allowed frontend origins |
 | `NOMI_MESSAGING_PROVIDER` | `mock` | `mock`, `telegram` (live demo), or `whatsapp` |
@@ -48,7 +53,7 @@ from `infra/supabase/migrations/`.
 | `GET` | `/api/v1/seniors/{id}/verifications` | Verification history |
 | `GET` | `/api/v1/seniors/{id}/alerts` | Caregiver alert history |
 | `GET` | `/api/v1/seniors/{id}/detections/change` | Latest longitudinal change result |
-| `PUT` | `/api/v1/seniors/{id}/contacts/{role}` | Register senior/caregiver WhatsApp contact |
+| `PUT` | `/api/v1/seniors/{id}/contacts/{role}` | Register a senior or caregiver messaging contact |
 | `POST` | `/api/v1/checkins` | Send and persist a check-in |
 | `POST` | `/api/v1/checkins/{id}/missed` | Close a missed check-in and run detection |
 | `GET` | `/api/v1/verifications/{id}/check-in-message` | P3: outbound senior check-in text |

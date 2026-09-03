@@ -153,14 +153,14 @@ export function LiveCheckinPanel({
   const notLinked = live !== null && live.contact_configured === false;
 
   let statusTitle = "No live check-in yet";
-  let statusDetail = `${seniorName}'s replies stay personal — this is a check-in, not a diagnosis.`;
+  let statusDetail = `A quick way to stay connected with ${seniorName}.`;
 
   if (notLinked && !waiting) {
     statusTitle = "Not linked";
     statusDetail = `${seniorName} is not linked to Telegram yet. You can still try sending a check-in.`;
   } else if (waiting) {
     statusTitle = "Waiting for a Telegram reply";
-    statusDetail = "When they reply, you will see wellbeing as 1–5 — never the raw message.";
+    statusDetail = "When they reply, you will see their wellbeing score from 1 to 5, not the message itself.";
   } else if (latest?.status === "responded") {
     statusTitle = repliedAt
       ? `Last reply ${formatCompactDateTime(repliedAt)}`
@@ -180,7 +180,7 @@ export function LiveCheckinPanel({
           <p className="text-sm font-medium text-[var(--primary)]">Live check-in</p>
           <h2 className="text-xl font-semibold">Check in with {seniorName}</h2>
           <p className="text-sm leading-6 text-[var(--muted-foreground)]">
-            A personal check-in, not a diagnosis. Nomi only shows a wellbeing score from 1 to 5.
+            Send a quick check-in. Nomi shows a wellbeing score from 1 to 5, never the message itself.
           </p>
         </div>
 

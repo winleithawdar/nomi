@@ -44,7 +44,7 @@ export default async function SeniorDetailPage({
     const lastPattern =
       baseline.status === "stable"
         ? `Usual reply around ${formatMinutes(baseline.response_latency_minutes.median)}`
-        : "Still learning their usual pattern";
+        : "Still getting to know their routine";
 
     return (
       <AppShell>
@@ -86,15 +86,15 @@ export default async function SeniorDetailPage({
           <Card>
             <CardContent className="space-y-5 p-5 sm:p-6">
               <div className="space-y-2">
-                <p className="text-sm font-medium text-[var(--primary)]">What Nomi noticed</p>
+                <p className="text-sm font-medium text-[var(--primary)]">Recent update</p>
                 <h2 className="text-xl font-semibold">
-                  {detection.detected ? "Change from their usual pattern" : "No unusual change detected"}
+                  {detection.detected ? "Something seems different" : "Everything looks familiar"}
                 </h2>
                 <p className="text-sm leading-6 text-[var(--muted-foreground)]">
                   {detection.summary ||
                     (detection.status === "insufficient_history"
-                      ? "Nomi is still collecting enough personal history for this detector."
-                      : "Recent behaviour remains within this senior's usual pattern.")}
+                      ? "Nomi is still getting to know their usual routine."
+                      : "Recent check-ins look consistent with their usual routine.")}
                 </p>
                 <p className="text-xs capitalize text-[var(--muted-foreground)]">
                   {detection.status === "ok" ? `${detection.confidence} confidence` : "Learning"}
@@ -102,18 +102,18 @@ export default async function SeniorDetailPage({
               </div>
               <Separator />
               <div className="space-y-2">
-                <p className="text-sm font-medium text-[var(--primary)]">Checked with them first</p>
+                <p className="text-sm font-medium text-[var(--primary)]">Following up</p>
                 <h2 className="text-xl font-semibold">
                   {verification.active_verification
                     ? "Waiting for a reply"
                     : verification.latest_alert
                       ? "Caregiver attention requested"
-                      : "No active check-in"}
+                      : "No follow-up needed"}
                 </h2>
                 <p className="text-sm leading-6 text-[var(--muted-foreground)]">
                   {verification.active_verification?.check_in_message ??
                     verification.latest_alert?.verification_outcome ??
-                    "Nomi will check with them first when something meaningful changes from their usual."}
+                    "If something seems different, Nomi will check in with them before contacting you."}
                 </p>
                 {verification.latest_alert ? (
                   <p className="text-sm">
@@ -124,14 +124,14 @@ export default async function SeniorDetailPage({
             </CardContent>
           </Card>
 
-          <section className="grid grid-cols-2 gap-3" aria-label="Personal baseline metrics">
+          <section className="grid grid-cols-2 gap-3" aria-label="Recent check-in overview">
             <BaselineMetricCard
               label="Typical response"
               value={formatMinutes(baseline.response_latency_minutes.median)}
-              helper="Median reply time from recent check-ins."
+              helper="Typical reply time from recent check-ins."
             />
             <BaselineMetricCard
-              label="Response variation"
+              label="Reply-time variation"
               value={
                 baseline.response_latency_minutes.stddev === null
                   ? "Not available"
@@ -145,7 +145,7 @@ export default async function SeniorDetailPage({
               helper="Recent rate of missed expected check-ins."
             />
             <BaselineMetricCard
-              label="How often they reply"
+              label="Reply frequency"
               value={formatDailyRate(
                 baseline.interaction_frequency.mean,
                 baseline.metadata.frequency_window_days,
@@ -166,9 +166,9 @@ export default async function SeniorDetailPage({
 
           <section className="space-y-3">
             <div>
-              <h2 className="text-xl font-semibold tracking-tight">Recent observations</h2>
+              <h2 className="text-xl font-semibold tracking-tight">Recent check-ins</h2>
               <p className="text-sm text-[var(--muted-foreground)]">
-                The most recent check-ins collected directly through Nomi.
+                A quick look at the most recent replies and check-ins.
               </p>
             </div>
             <RecentObservations observations={data.recent_observations} />

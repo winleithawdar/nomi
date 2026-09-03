@@ -24,7 +24,7 @@ export default async function DashboardPage() {
           <p className="text-sm text-[var(--muted-foreground)]">Good to see you, Sarah</p>
           <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">How is everyone?</h1>
           <p className="text-sm leading-6 text-[var(--muted-foreground)]">
-            Personal normal, not population normal.
+            A simple view of the people you care for.
           </p>
         </div>
 
@@ -33,7 +33,7 @@ export default async function DashboardPage() {
             <div>
               <h2 className="text-lg font-semibold tracking-tight">Needs you now</h2>
               <p className="text-sm text-[var(--muted-foreground)]">
-                Latest caregiver alerts after Nomi checked in.
+                Updates that may need your attention.
               </p>
             </div>
             <Link href={"/alerts" as Route} className="text-sm font-medium text-[var(--primary)]">
@@ -43,7 +43,7 @@ export default async function DashboardPage() {
           {alerts.length === 0 ? (
             <EmptyState
               title="Nothing needs you right now"
-              description="Nomi only alerts after verifying with the senior or no reassuring reply."
+              description="Nomi will let you know if a check-in needs your attention."
             />
           ) : (
             <AnimatedList>
@@ -73,7 +73,7 @@ export default async function DashboardPage() {
           <div className="flex items-end justify-between gap-3">
             <div>
               <h2 className="text-lg font-semibold tracking-tight">People</h2>
-              <p className="text-sm text-[var(--muted-foreground)]">Open someone to see their usual pattern.</p>
+              <p className="text-sm text-[var(--muted-foreground)]">See recent check-ins and updates for each person.</p>
             </div>
             <Link href={"/seniors" as Route} className="text-sm font-medium text-[var(--primary)]">
               View all
@@ -82,7 +82,7 @@ export default async function DashboardPage() {
           {data.seniors.length === 0 ? (
             <EmptyState
               title="No seniors yet"
-              description="Once check-ins begin, Nomi will start building a personal baseline here."
+              description="Once check-ins begin, you will see each person&apos;s recent activity here."
               actionHref="/seniors"
               actionLabel="View people"
             />

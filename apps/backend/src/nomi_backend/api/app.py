@@ -21,7 +21,7 @@ from nomi_backend.checkins import (
     DatabaseCheckInStore,
     InMemoryCheckInStore,
 )
-from nomi_backend.checkins.models import CheckIn, SeniorContact
+from nomi_backend.checkins.models import CheckIn, SeniorContact, WhatsAppEvent
 from nomi_backend.checkins.pipeline import ContactNotFound
 from nomi_backend.messaging.factory import build_messaging_provider
 from nomi_backend.messaging.protocol import ContactRole, MessagingError
@@ -209,6 +209,11 @@ class UpsertContactRequest(BaseModel):
     phone_e164: str | None = None
 
 
+class LegacyContactRequest(BaseModel):
+    wa_id: str
+    phone_e164: str | None = None
+
+
 @app.post("/api/v1/contacts", status_code=201)
 def upsert_contact(payload: UpsertContactRequest) -> dict:
     try:
@@ -225,6 +230,29 @@ def upsert_contact(payload: UpsertContactRequest) -> dict:
         SeniorContact(
             payload.senior_id,
             resolved_id,
+            role,
+            phone_e164=payload.phone_e164,
+        )
+    )
+    return {
+        "senior_id": contact.senior_id,
+        "wa_id": contact.wa_id,
+        "role": contact.role.value,
+        "phone_e164": contact.phone_e164,
+    }
+
+
+@app.put("/api/v1/seniors/{senior_id}/contacts/{role}")
+def upsert_legacy_contact(
+    senior_id: str,
+    role: ContactRole,
+    payload: LegacyContactRequest,
+) -> dict:
+    """Keep the original provider-neutral contact endpoint working."""
+    contact = store.upsert_contact(
+        SeniorContact(
+            senior_id,
+            payload.wa_id,
             role,
             phone_e164=payload.phone_e164,
         )
@@ -439,6 +467,83 @@ def _handle_inbound_text_message(service: CheckInService, message: Any) -> None:
         text=text,
     )
     _continue_session(service, wa_id=wa_id, wamid=wamid, text=text)
+
+
+def _process_new_interaction(interaction) -> None:
+    """Start senior-first verification for an actionable database-mode detection."""
+    if data_mode != "database":
+        return
+
+    change = repository.get_change_payload(interaction.senior_id)
+    anomaly = repository.get_anomaly_payload(interaction.senior_id)
+    detection = next(
+        (
+            item
+            for item in (change, anomaly)
+            if item is not None and item.get("detected") and item.get("status") == "ok"
+        ),
+        None,
+    )
+    if detection is None:
+        return
+
+    senior_detail = repository.get_senior_detail_payload(interaction.senior_id)
+    senior_name = senior_detail["senior"]["name"] if senior_detail else None
+    from nomi_backend.api.verification import _deliver_verification_messages
+
+    with SessionLocal() as session:
+        verification_service = VerificationService.from_session(session)
+        result = verification_service.start_from_detection_payload(
+            detection,
+            senior_name=senior_name,
+        )
+        if result is not None:
+            _deliver_verification_messages(result, verification_service)
+
+
+def _handle_verification_reply(
+    service: CheckInService,
+    *,
+    senior_id: str,
+    wa_id: str,
+    wamid: str,
+    received_at: datetime,
+    text: str | None,
+) -> bool:
+    """Record a provider reply against an active verification without duplicating it."""
+    from nomi_backend.api.verification import _deliver_verification_messages
+    from nomi_backend.checkins.verification_reply import map_verification_reply
+
+    with SessionLocal() as session:
+        verification_service = VerificationService.from_session(session)
+        active = verification_service.repository.get_active_verification(senior_id)
+        if active is None:
+            return False
+
+        recorded = store.record_inbound_event(
+            WhatsAppEvent(
+                inbound_wamid=wamid,
+                wa_id=wa_id,
+                received_at=received_at,
+                checkin_id=None,
+                ignored_reason=None,
+                verification_request_id=active.id,
+                event_type="verification_response",
+            )
+        )
+        if not recorded:
+            return True
+        if not isinstance(text, str):
+            return True
+
+        result = verification_service.record_response(
+            active.id,
+            map_verification_reply(text),
+            response_text=text,
+        )
+        if result is not None:
+            _deliver_verification_messages(result, verification_service)
+    return True
 
 
 @app.post("/webhooks/telegram")
