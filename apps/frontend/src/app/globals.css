@@ -69,3 +69,38 @@ h4 {
     scroll-behavior: auto;
   }
 }
+
+@keyframes nomi-splash-load {
+  0% {
+    transform: translateX(-120%);
+  }
+  100% {
+    transform: translateX(220%);
+  }
+}
+
+@keyframes nomi-splash-fade {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.nomi-splash-bar {
+  animation: nomi-splash-load 1.6s ease-in-out infinite;
+}
+
+.nomi-splash-fade {
+  animation: nomi-splash-fade 0.45s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nomi-splash-bar,
+  .nomi-splash-fade {
+    animation: none;
+  }
+}

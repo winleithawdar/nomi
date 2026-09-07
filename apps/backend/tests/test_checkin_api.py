@@ -230,6 +230,39 @@ class CheckInApiTest(unittest.TestCase):
         self.assertEqual(payload["latest"]["wellbeing_score"], 4.0)
         self.assertNotIn("body", payload["latest"])
 
+    def test_demo_recent_observations_include_live_response(self) -> None:
+        store.upsert_contact(SeniorContact(SENIOR_ID, WA_ID, ContactRole.SENIOR))
+        created = self.client.post(
+            "/api/v1/checkins",
+            json={"senior_id": SENIOR_ID},
+        )
+        self.assertEqual(created.status_code, 201)
+        checkin_id = created.json()["id"]
+        received_at = datetime(2026, 9, 2, 10, 0, tzinfo=timezone.utc)
+        get_checkin_service().handle_inbound_message(
+            wa_id=WA_ID,
+            wamid="wamid.in-recent-1",
+            received_at=received_at,
+            text="4",
+        )
+
+        detail = self.client.get(f"/api/v1/seniors/{SENIOR_ID}")
+        self.assertEqual(detail.status_code, 200)
+        observations = detail.json()["recent_observations"]
+        self.assertTrue(observations)
+        observed_times = [row["occurred_at"] for row in observations]
+        self.assertIn(received_at.isoformat(), observed_times)
+        matched = next(row for row in observations if row["occurred_at"] == received_at.isoformat())
+        self.assertEqual(matched["wellbeing_score"], 4.0)
+        self.assertFalse(matched["missed_checkin"])
+        self.assertIsNotNone(matched["response_latency_minutes"])
+        self.assertGreaterEqual(matched["interaction_frequency"], 1)
+        self.assertEqual(observed_times, sorted(observed_times, reverse=True))
+
+        live = self.client.get(f"/api/v1/seniors/{SENIOR_ID}/live-checkin")
+        self.assertEqual(live.status_code, 200)
+        self.assertEqual(live.json()["latest"]["id"], checkin_id)
+
     def test_live_checkin_without_contact_returns_200(self) -> None:
         response = self.client.get("/api/v1/seniors/unlinked-senior/live-checkin")
         self.assertEqual(response.status_code, 200)

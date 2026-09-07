@@ -16,6 +16,7 @@ from nomi_backend.checkins.pipeline import (
 from nomi_backend.checkins.semantics import LABEL_NEEDS_YOU_NOW, assess_session
 from nomi_backend.checkins.wellbeing import parse_wellbeing_score
 from nomi_backend.messaging.protocol import ContactRole, MessagingError
+from nomi_backend.messaging.settings import MessagingSettings
 from nomi_backend.persistence.database import SessionLocal, engine
 from nomi_backend.persistence.schema import (
     Base,
@@ -24,10 +25,11 @@ from nomi_backend.persistence.schema import (
 )
 
 FOLLOW_UP_1 = (
-    "How are you feeling compared with this morning — same, better, or worse?"
+    "Thanks for sharing. How are you feeling compared with this morning — "
+    "same, better, or worse? 🌿"
 )
-FOLLOW_UP_2 = "Is there anything you need help with today?"
-THANK_YOU = "Thank you. Nomi has noted this."
+FOLLOW_UP_2 = "Is there anything you need help with today? 🙏"
+THANK_YOU = "Thank you, I've noted this. Take care 💚"
 MAX_SENIOR_TURNS = 3
 STATUS_OPEN = "open"
 STATUS_SCORED = "scored"
@@ -151,6 +153,48 @@ def latest_scored_session_payload(senior_id: str, db: Session | None = None) -> 
             "lexicon_hits": list(assessment.get("lexicon_hits") or []),
             "closed_at": closed_at.isoformat() if closed_at is not None else None,
         }
+    finally:
+        if close_db:
+            db.close()
+
+
+def latest_scored_session_thread(senior_id: str, db: Session | None = None) -> list[dict] | None:
+    close_db = False
+    if db is None:
+        db = SessionLocal()
+        close_db = True
+    try:
+        row = (
+            db.query(CheckInSessionRecord)
+            .filter(
+                CheckInSessionRecord.senior_id == senior_id,
+                CheckInSessionRecord.assessment.isnot(None),
+            )
+            .order_by(CheckInSessionRecord.closed_at.desc())
+            .first()
+        )
+        if row is None:
+            return None
+        messages = (
+            db.query(CheckInMessageRecord)
+            .filter(CheckInMessageRecord.session_id == row.id)
+            .order_by(CheckInMessageRecord.created_at.asc())
+            .all()
+        )
+        thread: list[dict] = [
+            {
+                "from": ROLE_NOMI,
+                "text": MessagingSettings.from_env().default_checkin_body,
+            }
+        ]
+        for message in messages:
+            thread.append(
+                {
+                    "from": ROLE_SENIOR if message.role == ROLE_SENIOR else ROLE_NOMI,
+                    "text": message.body,
+                }
+            )
+        return thread
     finally:
         if close_db:
             db.close()

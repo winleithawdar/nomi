@@ -94,9 +94,23 @@ class DemoBaselineRepository:
                     senior_interactions, interaction.occurred_at
                 ),
                 "wellbeing_score": interaction.wellbeing_score,
+                "caregiver_self_checkin": False,
+                "caregiver_self_checkin_at": None,
             }
             for interaction in senior_interactions[-10:]
         ]
+        recent_observations.reverse()
+        # Demo storytelling: show lunch (Changed from usual) above dinner when both
+        # are the newest seeded pair. Skip once a live check-in is newer.
+        if (
+            len(recent_observations) >= 2
+            and recent_observations[0]["occurred_at"] == "2026-09-03T10:30:00+00:00"
+            and recent_observations[1]["occurred_at"] == "2026-09-03T04:30:00+00:00"
+        ):
+            recent_observations[0], recent_observations[1] = (
+                recent_observations[1],
+                recent_observations[0],
+            )
         response_latency_series = self._response_latency_series(senior_interactions)
 
         return {
@@ -168,21 +182,29 @@ class DemoBaselineRepository:
         return "Personal baseline established"
 
     def _reference_now(self) -> datetime:
-        return datetime(2026, 8, 30, 9, 0, tzinfo=UTC)
+        return datetime(2026, 9, 3, 9, 0, tzinfo=UTC)
 
     def _build_demo_interactions(self) -> list[SeniorInteraction]:
-        start = datetime(2026, 8, 1, 9, 0, tzinfo=UTC)
+        start = datetime(2026, 8, 9, 0, 0, tzinfo=UTC)
+        meal_offsets = (
+            timedelta(hours=0),   # 08:00 SGT
+            timedelta(hours=4, minutes=30),   # 12:30 SGT
+            timedelta(hours=10, minutes=30),  # 18:30 SGT
+        )
 
-        def build(
+        def build_at(
             senior_id: str,
-            day_offset: int,
+            occurred_at: datetime,
             latency_minutes: float | None,
             *,
             missed_checkin: bool = False,
             wellbeing_score: float | None = None,
         ) -> SeniorInteraction:
-            occurred_at = start + timedelta(days=day_offset)
-            sent_at = None if latency_minutes is None else occurred_at - timedelta(minutes=latency_minutes)
+            sent_at = (
+                None
+                if latency_minutes is None
+                else occurred_at - timedelta(minutes=latency_minutes)
+            )
             responded_at = None if latency_minutes is None else occurred_at
             return SeniorInteraction(
                 senior_id=senior_id,
@@ -194,25 +216,48 @@ class DemoBaselineRepository:
                 wellbeing_score=wellbeing_score,
             )
 
-        established_normal = [
-            build(
-                "senior-1",
-                day,
-                24 + (day % 5),
-                wellbeing_score=4.0 if day % 6 else 3.0,
-            )
-            for day in range(25)
-        ]
-        meaningful_change = [
-            build("senior-1", 25, 180, wellbeing_score=1.0),
+        established_normal: list[SeniorInteraction] = []
+        # 25 days of stable routine at fixed meal intervals.
+        for day in range(25):
+            day_start = start + timedelta(days=day)
+            for meal_index, offset in enumerate(meal_offsets):
+                occurred_at = day_start + offset
+                latency = (24 + meal_index) + (day % 5)
+                wellbeing = 4.0 if (day + meal_index) % 6 else 3.0
+                established_normal.append(
+                    build_at(
+                        "senior-1",
+                        occurred_at,
+                        latency,
+                        wellbeing_score=wellbeing,
+                    )
+                )
+
+        # Sep 3 stays within usual range. The Needs you now / dizzy row is added
+        # only when a live caregiver check-in is overlaid from the store.
+        pre_change_day = start + timedelta(days=25)
+        pre_change_same_day = [
+            build_at("senior-1", pre_change_day + meal_offsets[0], 27, wellbeing_score=4.0),
+            build_at("senior-1", pre_change_day + meal_offsets[1], 28, wellbeing_score=3.0),
+            build_at("senior-1", pre_change_day + meal_offsets[2], 29, wellbeing_score=4.0),
         ]
         other_seniors = [
-            build("senior-2", 0, 18),
-            build("senior-2", 3, None, missed_checkin=True),
-            build("senior-2", 6, 20),
-            build("senior-2", 10, None, missed_checkin=True),
-            build("senior-3", 20, 14, wellbeing_score=5.0),
-            build("senior-3", 22, 16, wellbeing_score=4.0),
-            build("senior-3", 24, 17, wellbeing_score=4.0),
+            build_at("senior-2", start + timedelta(days=0, hours=9), 18),
+            build_at(
+                "senior-2",
+                start + timedelta(days=3, hours=9),
+                None,
+                missed_checkin=True,
+            ),
+            build_at("senior-2", start + timedelta(days=6, hours=9), 20),
+            build_at(
+                "senior-2",
+                start + timedelta(days=10, hours=9),
+                None,
+                missed_checkin=True,
+            ),
+            build_at("senior-3", start + timedelta(days=20, hours=9), 14, wellbeing_score=5.0),
+            build_at("senior-3", start + timedelta(days=22, hours=9), 16, wellbeing_score=4.0),
+            build_at("senior-3", start + timedelta(days=24, hours=9), 17, wellbeing_score=4.0),
         ]
-        return [*established_normal, *meaningful_change, *other_seniors]
+        return [*established_normal, *pre_change_same_day, *other_seniors]

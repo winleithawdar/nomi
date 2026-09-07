@@ -38,6 +38,29 @@ export function ResponseLatencyChart({ points }: { points: ResponseLatencyPoint[
     mean: point.rolling_mean_minutes,
   }));
 
+  // For demo readability, keep the axis stable.
+  // The demo’s “normal” range is ~20-30min, so we clamp to 0–40.
+  const AXIS_MIN = 0;
+  const AXIS_MAX = 40;
+
+  const observedValues = data
+    .map((d) => d.observed)
+    .filter((v): v is number => typeof v === "number" && !Number.isNaN(v));
+
+  const plotData = data.map((d) => {
+    const observed = typeof d.observed === "number" ? d.observed : null;
+    const observedLine = observed != null && observed <= AXIS_MAX ? observed : null;
+    // Clamp outliers to the top of the chart for a consistent 0–40 axis.
+    const observedOutlierDot =
+      observed != null && observed > AXIS_MAX ? AXIS_MAX : null;
+
+    return {
+      ...d,
+      observedLine,
+      observedOutlierDot,
+    };
+  });
+
   return (
     <div className="rounded-3xl border border-[var(--border)] bg-white p-5">
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -58,8 +81,15 @@ export function ResponseLatencyChart({ points }: { points: ResponseLatencyPoint[
           </div>
         </div>
       </div>
-      <ChartContainer config={chartConfig} className="aspect-auto h-[220px] min-h-[200px] w-full">
-        <LineChart accessibilityLayer data={data} margin={{ left: 4, right: 8, top: 8, bottom: 0 }}>
+      <ChartContainer
+        config={chartConfig}
+        className="aspect-auto h-[240px] min-h-[220px] w-full"
+      >
+        <LineChart
+          accessibilityLayer
+          data={plotData}
+          margin={{ left: 4, right: 8, top: 8, bottom: 0 }}
+        >
           <CartesianGrid vertical={false} stroke="var(--border)" />
           <XAxis
             dataKey="occurred_at"
@@ -73,6 +103,7 @@ export function ResponseLatencyChart({ points }: { points: ResponseLatencyPoint[
             tickLine={false}
             axisLine={false}
             width={36}
+            domain={[AXIS_MIN, AXIS_MAX]}
             tickFormatter={(value: number) => `${Math.round(value)}`}
           />
           <ChartTooltip
@@ -102,13 +133,27 @@ export function ResponseLatencyChart({ points }: { points: ResponseLatencyPoint[
             strokeWidth={2}
             dot={false}
           />
+
+          {/* Normal observed replies (zoomed axis) */}
           <Line
             type="monotone"
-            dataKey="observed"
+            dataKey="observedLine"
+            name="observed"
             stroke="var(--color-observed)"
             strokeWidth={2.5}
             dot={{ r: 3, fill: "var(--color-observed)", strokeWidth: 0 }}
             activeDot={{ r: 5 }}
+          />
+
+          {/* Outlier replies as a dot-only marker (no connecting line). */}
+          <Line
+            type="monotone"
+            dataKey="observedOutlierDot"
+            name="observed_outlier"
+            stroke="transparent"
+            strokeWidth={0}
+            dot={{ r: 4, fill: "var(--color-observed)", strokeWidth: 0 }}
+            activeDot={{ r: 6 }}
           />
         </LineChart>
       </ChartContainer>

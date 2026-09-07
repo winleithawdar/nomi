@@ -5,7 +5,7 @@ import json
 import logging
 import os
 from contextlib import asynccontextmanager, suppress
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -177,7 +177,99 @@ def get_senior_baseline(senior_id: str) -> dict:
     payload = repository.get_senior_detail_payload(senior_id)
     if payload is None:
         raise HTTPException(status_code=404, detail="Senior not found.")
+    if data_mode == "demo":
+        payload = _overlay_demo_runtime_interactions(payload, senior_id)
     return payload
+
+
+def _overlay_demo_runtime_interactions(payload: dict, senior_id: str) -> dict:
+    if not isinstance(repository, DemoBaselineRepository):
+        return payload
+    live = store.interactions_for(senior_id)
+    if not live:
+        return payload
+    seeded = repository._interactions_for(senior_id)
+    merged = _merge_interactions(seeded, live)
+    payload["recent_observations"] = _recent_observations_from_interactions(merged)
+    payload["response_latency_series"] = _response_latency_series_from_interactions(merged)
+    return payload
+
+
+def _merge_interactions(
+    seeded: list[Any],
+    live: list[Any],
+) -> list[Any]:
+    merged: dict[tuple[str, ...], Any] = {}
+    for interaction in [*seeded, *live]:
+        key = _interaction_key(interaction)
+        merged[key] = interaction
+    return sorted(merged.values(), key=lambda item: item.occurred_at)
+
+
+def _interaction_key(interaction: Any) -> tuple[str, ...]:
+    if getattr(interaction, "checkin_id", None):
+        return ("checkin_id", str(interaction.checkin_id))
+    return (
+        "fallback",
+        interaction.occurred_at.isoformat(),
+        str(interaction.interaction_type),
+        str(interaction.response_latency_minutes),
+        str(interaction.wellbeing_score),
+        str(interaction.missed_checkin),
+    )
+
+
+def _recent_observations_from_interactions(interactions: list[Any]) -> list[dict]:
+    recent = interactions[-10:]
+    rows: list[dict] = []
+    for interaction in recent:
+        cutoff = interaction.occurred_at - timedelta(days=7)
+        frequency = len(
+            [
+                item
+                for item in interactions
+                if cutoff <= item.occurred_at <= interaction.occurred_at
+            ]
+        )
+        rows.append(
+            {
+                "occurred_at": interaction.occurred_at.isoformat(),
+                "response_latency_minutes": interaction.response_latency_minutes,
+                "missed_checkin": interaction.missed_checkin,
+                "interaction_frequency": frequency,
+                "wellbeing_score": interaction.wellbeing_score,
+                "caregiver_self_checkin": False,
+                "caregiver_self_checkin_at": None,
+            }
+        )
+    rows.reverse()
+    # Keep lunch above dinner for the seeded Sep 3 pair (demo click order).
+    if (
+        len(rows) >= 2
+        and rows[0].get("occurred_at") == "2026-09-03T10:30:00+00:00"
+        and rows[1].get("occurred_at") == "2026-09-03T04:30:00+00:00"
+    ):
+        rows[0], rows[1] = rows[1], rows[0]
+    return rows
+
+
+def _response_latency_series_from_interactions(interactions: list[Any]) -> list[dict]:
+    values: list[float] = []
+    series: list[dict] = []
+    for interaction in interactions:
+        latency = interaction.response_latency_minutes
+        if latency is None:
+            continue
+        values.append(latency)
+        rolling_window = values[-20:]
+        series.append(
+            {
+                "occurred_at": interaction.occurred_at.isoformat(),
+                "response_latency_minutes": latency,
+                "rolling_mean_minutes": sum(rolling_window) / len(rolling_window),
+            }
+        )
+    return series
 
 
 @app.get("/api/v1/seniors/{senior_id}/detections/anomaly")
@@ -289,11 +381,16 @@ def get_senior_schedule(senior_id: str) -> dict:
 
 @app.get("/api/v1/seniors/{senior_id}/sessions/latest")
 def get_latest_session(senior_id: str) -> dict:
-    from nomi_backend.checkins.sessions import latest_scored_session_payload
+    from nomi_backend.checkins.sessions import (
+        latest_scored_session_payload,
+        latest_scored_session_thread,
+    )
 
     if not senior_id.strip():
         raise HTTPException(status_code=400, detail="senior_id is required")
-    return {"session": latest_scored_session_payload(senior_id)}
+    session = latest_scored_session_payload(senior_id)
+    thread = latest_scored_session_thread(senior_id)
+    return {"session": session, "thread": thread}
 
 
 @app.post("/api/v1/checkins", status_code=201)

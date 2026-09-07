@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { MessageCircleHeart, ShieldCheck } from "lucide-react";
+import { MessageCircleHeart } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -9,8 +9,6 @@ import { ApiError } from "@/lib/api/client";
 import {
   getLiveCheckin,
   sendCheckIn,
-  startSeniorVerification,
-  type DetectionResponse,
   type LiveCheckInResponse,
 } from "@/lib/api/seniors";
 import { formatCompactDateTime } from "@/lib/format";
@@ -32,22 +30,16 @@ function wellbeingLabel(score: number | null | undefined): string | null {
 export function LiveCheckinPanel({
   seniorId,
   seniorName,
-  detected,
-  detection,
   initialLive,
 }: {
   seniorId: string;
   seniorName: string;
-  detected: boolean;
-  detection: DetectionResponse;
   initialLive: LiveCheckInResponse | null;
 }) {
   const [live, setLive] = useState<LiveCheckInResponse | null>(initialLive);
   const [polling, setPolling] = useState(false);
   const [sentCheckinId, setSentCheckinId] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
-  const [confirming, setConfirming] = useState(false);
-  const [confirmed, setConfirmed] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -129,23 +121,6 @@ export function LiveCheckinPanel({
     }
   }
 
-  async function onAskToConfirm() {
-    setError(null);
-    setConfirming(true);
-    try {
-      await startSeniorVerification(seniorId, seniorName, detection);
-      setConfirmed(true);
-    } catch (cause) {
-      setError(
-        cause instanceof ApiError
-          ? cause.message
-          : "Could not send a confirmation check-in. Try again.",
-      );
-    } finally {
-      setConfirming(false);
-    }
-  }
-
   const waiting = polling || hasOpenCheckin(live?.open_checkin ?? null);
   const latest = live?.latest;
   const wellbeing = wellbeingLabel(latest?.wellbeing_score ?? null);
@@ -216,24 +191,6 @@ export function LiveCheckinPanel({
             <MessageCircleHeart className="h-4 w-4" aria-hidden />
             {sending ? "Sending…" : "Send Nomi check-in"}
           </Button>
-
-          {detected ? (
-            <Button
-              type="button"
-              variant="outline"
-              size="lg"
-              className="min-h-11 w-full"
-              onClick={() => void onAskToConfirm()}
-              disabled={confirming || confirmed}
-            >
-              <ShieldCheck className="h-4 w-4" aria-hidden />
-              {confirmed
-                ? "Asked them to confirm"
-                : confirming
-                  ? "Sending…"
-                  : "Ask them to confirm"}
-            </Button>
-          ) : null}
         </div>
       </CardContent>
     </Card>

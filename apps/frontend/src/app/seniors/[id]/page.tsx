@@ -3,44 +3,55 @@ import { notFound } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
 import { BaselineMetricCard } from "@/components/baseline-metric-card";
 import { BaselineProgress } from "@/components/baseline-progress";
+import { CaregiverUpdateCard } from "@/components/caregiver-update-card";
 import { LiveCheckinPanel } from "@/components/live-checkin-panel";
 import { RecentObservations } from "@/components/recent-observations";
 import { ResponseLatencyChart } from "@/components/response-latency-chart";
+import { SeniorSectionNav } from "@/components/senior-section-nav";
 import { SessionAssessmentCard } from "@/components/session-assessment-card";
 import { StatusBadge } from "@/components/status-badge";
 import { WellbeingChart } from "@/components/wellbeing-chart";
 import { Card, CardContent } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
 import {
-  getLatestAnomaly,
   getLatestSession,
   getLiveCheckin,
   getSchedule,
   getSeniorDetail,
-  getVerificationStatus,
 } from "@/lib/api/seniors";
 import { ApiError } from "@/lib/api/client";
+import { DEMO_SCENARIOS, buildScenarioFromObservation } from "@/lib/demo-scenarios";
 import { formatDailyRate, formatMinutes, formatPercent } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
 export default async function SeniorDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ checkin?: string; live?: string }>;
 }) {
   const { id } = await params;
+  const { checkin, live: liveParam } = await searchParams;
+  const liveFocus = liveParam === "1";
 
   try {
-    const [data, detection, verification, live, schedule, latestSession] = await Promise.all([
+    const [data, live, schedule, latestSession] = await Promise.all([
       getSeniorDetail(id),
-      getLatestAnomaly(id),
-      getVerificationStatus(id),
       getLiveCheckin(id).catch(() => null),
       getSchedule(id),
       getLatestSession(id),
     ]);
     const { senior, baseline } = data;
+    const pinnedObservation =
+      liveFocus
+        ? null
+        : checkin
+          ? (data.recent_observations.find((o) => o.occurred_at === checkin) ?? null)
+          : null;
+    const pinnedScenario = pinnedObservation
+      ? (DEMO_SCENARIOS[pinnedObservation.occurred_at] ?? buildScenarioFromObservation(pinnedObservation))
+      : null;
     const lastPattern =
       baseline.status === "stable"
         ? `Usual reply around ${formatMinutes(baseline.response_latency_minutes.median)}`
@@ -69,62 +80,39 @@ export default async function SeniorDetailPage({
             </CardContent>
           </Card>
 
-          <LiveCheckinPanel
-            seniorId={senior.id}
-            seniorName={senior.name}
-            detected={detection.detected}
-            detection={detection}
-            initialLive={live}
-          />
+          <SeniorSectionNav />
 
-          <SessionAssessmentCard
-            seniorId={senior.id}
-            schedule={schedule}
-            session={latestSession?.session ?? null}
-          />
+          <section id="section-live" className="scroll-mt-32">
+            <LiveCheckinPanel
+              seniorId={senior.id}
+              seniorName={senior.name}
+              initialLive={live}
+            />
+          </section>
 
-          <Card>
-            <CardContent className="space-y-5 p-5 sm:p-6">
-              <div className="space-y-2">
-                <p className="text-sm font-medium text-[var(--primary)]">Recent update</p>
-                <h2 className="text-xl font-semibold">
-                  {detection.detected ? "Something seems different" : "Everything looks familiar"}
-                </h2>
-                <p className="text-sm leading-6 text-[var(--muted-foreground)]">
-                  {detection.summary ||
-                    (detection.status === "insufficient_history"
-                      ? "Nomi is still getting to know their usual routine."
-                      : "Recent check-ins look consistent with their usual routine.")}
-                </p>
-                <p className="text-xs capitalize text-[var(--muted-foreground)]">
-                  {detection.status === "ok" ? `${detection.confidence} confidence` : "Learning"}
-                </p>
-              </div>
-              <Separator />
-              <div className="space-y-2">
-                <p className="text-sm font-medium text-[var(--primary)]">Following up</p>
-                <h2 className="text-xl font-semibold">
-                  {verification.active_verification
-                    ? "Waiting for a reply"
-                    : verification.latest_alert
-                      ? "Caregiver attention requested"
-                      : "No follow-up needed"}
-                </h2>
-                <p className="text-sm leading-6 text-[var(--muted-foreground)]">
-                  {verification.active_verification?.check_in_message ??
-                    verification.latest_alert?.verification_outcome ??
-                    "If something seems different, Nomi will check in with them before contacting you."}
-                </p>
-                {verification.latest_alert ? (
-                  <p className="text-sm">
-                    <span className="font-medium">Suggested next step:</span> {verification.latest_alert.suggested_action}
-                  </p>
-                ) : null}
-              </div>
-            </CardContent>
-          </Card>
+          <section id="section-this-checkin" className="scroll-mt-32">
+            <SessionAssessmentCard
+              seniorId={senior.id}
+              schedule={schedule}
+              session={latestSession?.session ?? null}
+              pinnedObservation={pinnedObservation}
+              liveFocus={liveFocus}
+            />
+          </section>
 
-          <section className="grid grid-cols-2 gap-3" aria-label="Recent check-in overview">
+          <section id="section-update" className="scroll-mt-32">
+            <CaregiverUpdateCard
+              seniorId={senior.id}
+              pinnedScenario={pinnedScenario}
+              liveFocus={liveFocus}
+            />
+          </section>
+
+          <section
+            id="section-overview"
+            className="scroll-mt-32 grid grid-cols-2 gap-3"
+            aria-label="Recent check-in overview"
+          >
             <BaselineMetricCard
               label="Typical response"
               value={formatMinutes(baseline.response_latency_minutes.median)}
@@ -161,17 +149,23 @@ export default async function SeniorDetailPage({
             ) : null}
           </section>
 
-          <ResponseLatencyChart points={data.response_latency_series} />
-          <WellbeingChart observations={data.recent_observations} />
+          <section id="section-charts" className="scroll-mt-32 space-y-6">
+            <ResponseLatencyChart points={data.response_latency_series} />
+            <WellbeingChart observations={data.recent_observations} />
+          </section>
 
-          <section className="space-y-3">
+          <section id="section-history" className="scroll-mt-32 space-y-3">
             <div>
               <h2 className="text-xl font-semibold tracking-tight">Recent check-ins</h2>
               <p className="text-sm text-[var(--muted-foreground)]">
                 A quick look at the most recent replies and check-ins.
               </p>
             </div>
-            <RecentObservations observations={data.recent_observations} />
+            <RecentObservations
+              observations={data.recent_observations}
+              seniorId={senior.id}
+              selectedCheckin={checkin ?? null}
+            />
           </section>
         </div>
       </AppShell>
