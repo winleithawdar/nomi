@@ -29,6 +29,7 @@ from nomi_backend.checkins.sessions import (
     THANK_YOU,
     handle_session_inbound,
     latest_scored_session_payload,
+    latest_scored_session_thread,
     record_missed_session,
 )
 from nomi_backend.checkins.store import InMemoryCheckInStore
@@ -184,6 +185,24 @@ class SessionFollowUpTest(unittest.TestCase):
         ]
         self.assertEqual(len(responded), 4)
 
+    def test_latest_scored_session_thread(self) -> None:
+        self.service.send_checkin(SENIOR_ID, meal="lunch")
+        self._reply("wamid-t1", "3", RECEIVED_AT)
+        self._reply("wamid-t2", "a bit tired today", RECEIVED_AT + timedelta(minutes=1))
+        self._reply("wamid-t3", "ok", RECEIVED_AT + timedelta(minutes=2))
+
+        thread = latest_scored_session_thread(SENIOR_ID)
+        self.assertIsNotNone(thread)
+        assert thread is not None
+        self.assertEqual(len(thread), 7)
+        self.assertEqual(thread[0]["from"], "nomi")
+        self.assertIn("Nomi checking in", thread[0]["text"])
+        self.assertEqual(thread[1]["from"], "senior")
+        self.assertEqual(thread[1]["text"], "3")
+        nomi_bodies = [message["text"] for message in thread if message["from"] == "nomi"]
+        self.assertIn("Nomi checking in", nomi_bodies[0])
+        self.assertEqual(nomi_bodies[1:], [FOLLOW_UP_1, FOLLOW_UP_2, THANK_YOU])
+
     def test_help_fell_alerts_caregiver(self) -> None:
         self.service.send_checkin(SENIOR_ID, meal="lunch")
         self._reply("wamid-h1", "4", SENT_AT + timedelta(minutes=5))
@@ -238,7 +257,7 @@ class SessionApiTest(unittest.TestCase):
     def test_latest_session_null_when_none(self) -> None:
         response = self.client.get("/api/v1/seniors/no-sessions-yet/sessions/latest")
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json(), {"session": None})
+        self.assertEqual(response.json(), {"session": None, "thread": None})
 
     def test_existing_send_checkin_still_works(self) -> None:
         app_store.upsert_contact(SeniorContact(SENIOR_ID, WA_ID, ContactRole.SENIOR))

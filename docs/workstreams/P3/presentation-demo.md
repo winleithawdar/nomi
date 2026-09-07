@@ -24,15 +24,31 @@ curl -X POST http://127.0.0.1:8000/api/v1/checkins/run-due
 
 If ngrok restarts, `setWebhook` again (see [telegram-demo-setup.md](telegram-demo-setup.md)).
 
+## Fresh tab — live Needs you now (recommended hook)
+
+First load of **This check in** stays empty until the caregiver sends a check-in. There is no need to delete the DB.
+First open **Recent update** is **Changed from usual**; a live **Send check-in** becomes **Needs you now**.
+
+1. Open a **new browser tab** → **People → Mdm Tan**. **This check in** should be empty — no live session yet.
+2. Click **Send Nomi check-in** (Telegram webhook + ngrok running).
+3. In Telegram, reply exactly:
+
+| Turn | You type |
+|---|---|
+| 1 | `1` |
+| 2 | `worse` |
+| 3 | `Dizzy, cannot stand up properly. Need help.` |
+
+4. Wait ~3s (card polls) or refresh. **This check in** shows **Needs you now**, suggested step **Call or visit when you can.**, and the **full check-in conversation** (same wording as Telegram).
+
+Click Sep 3 rows for instant historical scenarios (breakfast / lunch / dinner).
+
 ## Script (~2 minutes)
 
 1. Open `http://localhost:3000` at phone width. **Home** — Sarah’s view. Mdm Tan has a personal baseline (not a risk score).
-2. **People → Mdm Tan** — note **Next scheduled** (SGT meal clock).
-3. **Send Nomi check-in** (or `run-due`). Senior Telegram: reply `4`, then answer the two follow-ups with ordinary words (`same`, `no`).
-4. After the third reply, refresh Mdm Tan. Card shows **As usual**, three tracks 0/0/0 or similar, next step **No extra step.**
-5. Send again. Senior: `3`, then `a bit tired today`, then `ok`. Card: **Changed from usual**. Walk judges: rhythm (if slow) / self-report 3 vs usual 4 / language `tired`. Label = **max**, not average.
-6. Optional third send: `please help I fell` → **Needs you now** even if she answered quickly. Suggested step: call or visit. Reasons list `help` / `fell`.
-7. Charts on this page stay on **demo** history so they cannot go blank. Tonight’s Telegram thread scores the meal card; it does not rewrite Isolation Forest / CUSUM charts.
+2. **People → Mdm Tan** — scroll to **Recent check-ins** and click Sep 3 rows to show **As usual** → **Changed from usual** → **Needs you now** with meal-specific threads.
+3. For the live moment, use the **Fresh tab** flow above.
+4. Charts on this page stay on **demo** history so they cannot go blank. Tonight’s Telegram thread scores the meal card; it does not rewrite Isolation Forest / CUSUM charts.
 
 ## Judge one-liner
 

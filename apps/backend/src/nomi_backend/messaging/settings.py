@@ -6,8 +6,8 @@ from dataclasses import dataclass
 DEFAULT_PROVIDER = "mock"
 DEFAULT_GRAPH_API_VERSION = "v21.0"
 DEFAULT_CHECKIN_BODY = (
-    "Hi, this is Nomi checking in. How are you today? Reply with a number "
-    "from 1 (low) to 5 (good), or any short reply so we know you saw this."
+    "Hi Mdm Tan! It's Nomi checking in 😊 How are you feeling right now? "
+    "Reply with a number from 1 (low) to 5 (good), or a short note."
 )
 
 

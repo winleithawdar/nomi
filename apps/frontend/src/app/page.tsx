@@ -1,5 +1,5 @@
-import { redirect } from "next/navigation";
+import { DemoSplash } from "@/components/demo-splash";
 
 export default function HomePage() {
-  redirect("/dashboard");
+  return <DemoSplash />;
 }

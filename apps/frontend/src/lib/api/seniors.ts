@@ -64,6 +64,8 @@ export interface SeniorDetailResponse {
     missed_checkin: boolean;
     interaction_frequency: number;
     wellbeing_score: number | null;
+    caregiver_self_checkin: boolean;
+    caregiver_self_checkin_at: string | null;
   }>;
   response_latency_series: Array<{
     occurred_at: string;
@@ -162,8 +164,14 @@ export interface SessionAssessment {
   closed_at: string | null;
 }
 
+export interface SessionThreadMessage {
+  from: "nomi" | "senior";
+  text: string;
+}
+
 export interface LatestSessionResponse {
   session: SessionAssessment | null;
+  thread?: SessionThreadMessage[] | null;
 }
 
 export function getSeniors(): Promise<SeniorsResponse> {
